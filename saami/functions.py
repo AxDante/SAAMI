@@ -33,11 +33,12 @@ def get_volume_SAM(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_
     #     min_mask_region_area=00,  # Requires open-cv to run post-processing
     # )
 
-    sam_labels = {}
-
-    sam_labels['seg_x'] = np.zeros(img_shape)
-    sam_labels['seg_y'] = np.zeros(img_shape)
-    sam_labels['seg_z'] = np.zeros(img_shape)
+    sam_data = {}
+    sam_data["image"] = data_dict["image"]
+    sam_data["gt_label"] = data_dict["label"]
+    sam_data['sam_seg_x'] = np.zeros(img_shape)
+    sam_data['sam_seg_y'] = np.zeros(img_shape)
+    sam_data['sam_seg_z'] = np.zeros(img_shape)
 
 
     def process_slice(image_slice, mask_generator, sam_labels, axis, pos):
@@ -63,14 +64,14 @@ def get_volume_SAM(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_
             masks_label[mask['segmentation']] = index + 1
 
         if axis == 'x':
-            sam_labels['seg_x'][pos, top:bottom + 1, left:right + 1] = masks_label
+            sam_data['seg_x'][pos, top:bottom + 1, left:right + 1] = masks_label
         elif axis == 'y':
-            sam_labels['seg_y'][top:bottom + 1, pos, left:right + 1] = masks_label
+            sam_data['seg_y'][top:bottom + 1, pos, left:right + 1] = masks_label
         elif axis == 'z':
-            sam_labels['seg_z'][top:bottom + 1, left:right + 1, pos] = masks_label
+            sam_data['seg_z'][top:bottom + 1, left:right + 1, pos] = masks_label
 
     for i in range(img_shape[2]):
-        process_slice(image[:, :, i], mask_generator, sam_labels, 'z', i)
+        process_slice(image[:, :, i], mask_generator, sam_data, 'z', i)
 
     # for i in range(img_shape[0]):
     #     process_slice(image[i, :, :], mask_generator, sam_labels, 'x', i)
@@ -78,5 +79,5 @@ def get_volume_SAM(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_
     # for i in range(img_shape[1]):
     #     process_slice(image[:, i, :], mask_generator, sam_labels, 'y', i)
 
-    return sam_labels
+    return sam_data
 

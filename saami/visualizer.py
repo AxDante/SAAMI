@@ -5,6 +5,7 @@ from IPython.display import display
 import os  # Import the os module to handle file paths
 
 def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, save_path=""):
+    
     images = data_dict["image"]
     labels = data_dict["label"]
     max_slice = images.shape[2] - 1
