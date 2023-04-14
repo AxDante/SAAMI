@@ -2,9 +2,7 @@
 
 [![License Apache Software License 2.0](https://img.shields.io/pypi/l/napari-sam.svg?color=green)](https://github.com/MIC-DKFZ/napari-sam/raw/main/LICENSE)
 
-Automatically segment anything on 3D medical images using Meta AI's new **Segment Anything Model (SAM)**!
-
-This is just a simple project that helps the user visualize the segmentation.
+Automatically segment anything on 3D medical images using Meta AI's new **Segment Anything Model (SAM)**. This is just a simple project that helps the user visualize the segmentation.
 
 
 ## Installation
