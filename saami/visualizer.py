@@ -7,10 +7,10 @@ import os  # Import the os module to handle file paths
 def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, save_path=""):
     
     images = data_dict["image"]
-    labels = data_dict["label"]
+    labels = data_dict["gt_label"]
     max_slice = images.shape[2] - 1
 
-    masks_z = data_dict['seg_z']
+    masks_z = data_dict['sam_seg_z']
 
     # Function to update the plot based on the slider value
     def get_plot(slice_idx):

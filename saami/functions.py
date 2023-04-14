@@ -64,11 +64,11 @@ def get_volume_SAM(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_
             masks_label[mask['segmentation']] = index + 1
 
         if axis == 'x':
-            sam_data['seg_x'][pos, top:bottom + 1, left:right + 1] = masks_label
+            sam_data['sam_seg_x'][pos, top:bottom + 1, left:right + 1] = masks_label
         elif axis == 'y':
-            sam_data['seg_y'][top:bottom + 1, pos, left:right + 1] = masks_label
+            sam_data['sam_seg_y'][top:bottom + 1, pos, left:right + 1] = masks_label
         elif axis == 'z':
-            sam_data['seg_z'][top:bottom + 1, left:right + 1, pos] = masks_label
+            sam_data['sam_seg_z'][top:bottom + 1, left:right + 1, pos] = masks_label
 
     for i in range(img_shape[2]):
         process_slice(image[:, :, i], mask_generator, sam_data, 'z', i)
