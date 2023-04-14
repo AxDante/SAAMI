@@ -9,4 +9,4 @@ print(spine_data)
 spine_sam_data = get_volume_SAM(spine_data)
 print(spine_sam_data)
 
-visualize_volume_SAM(spine_sam_data, save_path="/outputs")
+visualize_volume_SAM(spine_sam_data, save_path=os.path.join(os.getcwd(), "outputs")))

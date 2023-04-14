@@ -60,6 +60,7 @@ def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, save_pat
                 os.makedirs(save_path)
             # Construct the filename for the current slice
             filename = os.path.join(save_path, f"Slice_{slice_idx}_visualization.jpg")
+            print('saving file to {}'.format(filename))
             # Save the plot to the specified file
             fig.savefig(filename)
 
