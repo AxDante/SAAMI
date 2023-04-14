@@ -49,7 +49,9 @@ def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, save_pat
         ax6.axis("off")
 
         fig.subplots_adjust(wspace=0.2, hspace=-0.4)
-        plt.show()
+        
+        if show_widget:
+            plt.show()
 
         # Save the plot if save_image is True
         if save_image:
