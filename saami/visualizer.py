@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import ipywidgets as widgets
-from IPython.display import display
 import os
 import tkinter as tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, show_tkinter=False, save_path=""):
-    
+
+def visualize_volume_SAM(data_dict, show_widget=False, show_tkinter=False, save_path=""):
     images = data_dict["image"]
     labels = data_dict["gt_label"]
     max_slice = images.shape[2] - 1
@@ -14,13 +14,16 @@ def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, show_tki
     masks_z = data_dict['sam_seg_z']
 
     # Function to update the plot based on the slider value
-    def get_plot(slice_idx):
+    def get_plot(fig, slice_idx):
+
+        # Clear previous image for the GUI
+        fig.clear()
 
         image = images[:, :, slice_idx]
         gt_label = labels[:, :, slice_idx]
         sam_label = masks_z[:, :, slice_idx]
 
-        fig, axes = plt.subplots(2, 3, figsize=(15, 15))
+        axes = fig.subplots(2, 3)
         (ax1, ax2, ax3), (ax4, ax5, ax6) = axes
 
         ax1.imshow(image, cmap="gray", aspect="equal")
@@ -30,7 +33,7 @@ def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, show_tki
         label_img = ax2.imshow(gt_label, cmap="jet", aspect="equal")
         ax2.set_title("Ground Truth Label")
         ax2.axis("off")
-        
+
         ax3.imshow(image, cmap="gray", aspect="equal")
         ax3.imshow(gt_label, cmap="jet", alpha=0.5, aspect="equal")
         ax3.set_title("Ground Truth Overlay")
@@ -43,43 +46,58 @@ def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, show_tki
         label_img = ax5.imshow(sam_label, cmap="jet", aspect="equal")
         ax5.set_title("SAM-Mask Label")
         ax5.axis("off")
-        
+
         ax6.imshow(image, cmap="gray", aspect="equal")
         ax6.imshow(sam_label, cmap="jet", alpha=0.5, aspect="equal")
         ax6.set_title("SAM-Mask Overlay")
         ax6.axis("off")
 
-        fig.subplots_adjust(wspace=0.2, hspace=-0.4)
-        
-        if show_widget:
-            plt.show()
+        fig.subplots_adjust(wspace=0.2, hspace=-0.2)
 
-        # Save the plot
-        if save_image:
-            # Create the save_path directory if it does not exist
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
-            # Construct the filename for the current slice
-            filename = os.path.join(save_path, f"Slice_{slice_idx}_visualization.jpg")
-            print('saving file to {}'.format(filename))
-            # Save the plot to the specified file
-            fig.savefig(filename)
+        if show_tkinter:
+            canvas.draw()
 
     # Show the ipy widget (which works in notebook environemnt
     if show_widget:
+        fig = plt.figure(figsize=(15, 15))
         slider = widgets.IntSlider(min=0, max=max_slice, step=1, value=0)
-        widgets.interact(get_plot, slice_idx=slider)
+        widgets.interact(lambda slice_idx: get_plot(fig, slice_idx), slice_idx=slider)
 
     # Show the tinker GUI
-    elif show_tkinter:
+    if show_tkinter:
         window = tk.Tk()
         window.title("Volume Visualization")
-        slider = tk.Scale(window, from_=0, to=max_slice, orient=tk.HORIZONTAL, command=lambda s: get_plot(int(s)))
-        slider.pack(fill=tk.X)
-        get_plot(0)
+
+        fig = plt.figure(figsize=(15, 15))
+        canvas = FigureCanvasTkAgg(fig, master=window)
+        canvas.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+
+        # Create a frame for the slider and button
+        control_frame = tk.Frame(window)
+        control_frame.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Slider
+        slider = tk.Scale(control_frame, from_=0, to=max_slice, orient=tk.VERTICAL,
+                          command=lambda s: get_plot(fig, int(s)))
+        slider.pack(side=tk.TOP, pady=10)
+
+        # Save Image button
+        def save_image():
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            filename = os.path.join(save_path, f"Slice_{slider.get()}_visualization.jpg")
+            print('saving file to {}'.format(filename))
+            fig.savefig(filename)
+
+        save_button = tk.Button(control_frame, text="Save Image", command=save_image)
+
+        save_button.pack(side=tk.TOP, pady=10)
+
+        get_plot(fig, 0)
         window.mainloop()
 
     # Otherwise just run through the volume and save the images
-    else:
+    if not show_tkinter and not show_widget:
+        fig = plt.figure(figsize=(15, 15))
         for i in range(max_slice):
-            get_plot(i) 
+            get_plot(fig, i)
