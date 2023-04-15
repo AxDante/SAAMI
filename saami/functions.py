@@ -1,11 +1,15 @@
+import math
 import os.path
 import urllib.request
+from PIL import Image
+import matplotlib.pyplot as plt
+import random
 import numpy as np
 import pickle
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry, SamPredictor
 
 
-def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_model_type= "vit_h", device="cuda"):
+def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_model_type= "vit_h", device="cuda", main_axis='z'):
 
     image = data_dict["image"]
     label = data_dict["label"]
@@ -42,26 +46,26 @@ def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth",
     sam_data = {}
     sam_data["image"] = data_dict["image"]
     sam_data["gt_label"] = data_dict["label"]
+    sam_data["sam_seg_x"] = np.zeros(img_shape)
+    sam_data["sam_seg_y"] = np.zeros(img_shape)
+    sam_data["sam_seg_z"] = np.zeros(img_shape)
 
-    sam_data['sam_seg_x'] = np.zeros(img_shape)
-    sam_data['sam_seg_y'] = np.zeros(img_shape)
-    sam_data['sam_seg_z'] = np.zeros(img_shape)
+    def process_slice(input_image_slice, mask_generator, axis, start_pos):
 
 
-    def process_slice(image_slice, mask_generator, axis, pos):
+        input_shape = input_image_slice.shape
 
-        print(image_slice.shape)
-
-        mask = np.abs(image_slice) > 10
+        mask = np.abs(input_image_slice) > 10
         rows, cols = np.where(mask)
 
         if not (rows.size > 0 and cols.size > 0):
-          return
+            print('No available pixels, skipping...')
+            return
 
         top, bottom = np.min(rows), np.max(rows)
         left, right = np.min(cols), np.max(cols)
 
-        image_slice = image_slice[top:bottom + 1, left:right + 1]
+        image_slice = input_image_slice[top:bottom + 1, left:right + 1]
         image_slice = image_slice[:, :, np.newaxis]
 
         image_3d = np.repeat(image_slice, 3, axis=2)
@@ -74,22 +78,32 @@ def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth",
             masks_label[mask['segmentation']] = index + 1
 
         if axis == 'x':
-            sam_data['sam_seg_x'][pos, top:bottom + 1, left:right + 1] = masks_label
+            sam_data['sam_seg_x'][start_pos, top:bottom + 1, left:right + 1] = masks_label
         elif axis == 'y':
-            sam_data['sam_seg_y'][top:bottom + 1, pos, left:right + 1] = masks_label
+            sam_data['sam_seg_y'][top:bottom + 1, start_pos, left:right + 1] = masks_label
         elif axis == 'z':
-            sam_data['sam_seg_z'][top:bottom + 1, left:right + 1, pos] = masks_label
+            sam_data['sam_seg_z'][top:bottom + 1, left:right + 1, start_pos] = masks_label
 
 
-    for i in range(img_shape[0]):
-        process_slice(image[i, :, :], mask_generator, 'x', i)
+    axes = ['x', 'y', 'z'] if main_axis == 'all' else [main_axis]
 
-    for i in range(img_shape[1]):
-        process_slice(image[:, i, :], mask_generator, 'y', i)
+    if 'x' in axes:
+        # For 'x' axis
+        for i in range(img_shape[0]):
+            print('Processing slice {} using SAM model along x axis.'.format(i))
+            process_slice(image[i, :, :], mask_generator, 'x', i)
 
-    for i in range(img_shape[2]):
-        print('Processing slice {} using SAM model.'.format(i))
-        process_slice(image[:, :, i], mask_generator, 'z', i)
+    if 'y' in axes:
+        # For 'y' axis
+        for i in range(img_shape[1]):
+            print('Processing slice {} using SAM model along y axis.'.format(i))
+            process_slice(image[:, i, :], mask_generator, 'y', i)
+
+    if 'z' in axes:
+        # For 'z' axis
+        for i in range(img_shape[2]):
+            print('Processing slice {} using SAM model along z axis.'.format(i))
+            process_slice(image[:, :, i], mask_generator, 'z', i)
 
     return sam_data
 
@@ -116,3 +130,57 @@ def load_volume_SAM_data(load_path):
 
     print('SAM data loaded from to {}'.format(load_path))
     return sam_data
+
+def check_grid(data, rx, ry, rz, bs):
+    if all(data[rx, ry, rz] == value for value in
+           [data[rx - bs, ry, rz], data[rx + bs, ry, rz], data[rx, ry - bs, rz], data[rx, ry + bs, rz]]):
+        return True, data[rx, ry, rz]
+    else:
+        return False, -1
+
+
+def fine_tune_3d_masks(data_dict, main_axis='z', sample_size=10000, search_size=5):
+
+    data = data_dict['sam_seg_{}'.format(main_axis)]
+    data_shape = data.shape
+    bs = int((search_size-1)/2)
+
+    for sid in range(sample_size):
+
+        if sid % 30 == 0:
+            print('sample ID : {}'.format(sid))
+
+        rx = random.randint(bs, data_shape[0]-bs-1)
+        ry = random.randint(bs, data_shape[1]-bs-1)
+        rz = random.randint(bs, data_shape[2]-bs-1)
+
+        if main_axis == 'z':
+            cur, cur_val = check_grid(data, rx, ry, rz, bs)
+            if cur:
+                prev, prev_val = check_grid(data, rx, ry, rz - bs, bs)
+                next, next_val = check_grid(data, rx, ry, rz + bs, bs)
+
+                if prev and next:
+
+                    if cur_val != prev_val:
+                        prev_mask = (data[:, :, rz - bs] == prev_val)
+                        cur_mask = (data[:, :, rz - bs] == cur_val)
+
+                        data[:, :, rz - bs][prev_mask] = cur_val
+                        data[:, :, rz - bs][cur_mask] = prev_val
+
+                    if cur_val != next_val:
+                        next_mask = (data[:, :, rz + bs] == next_val)
+                        cur_mask = (data[:, :, rz + bs] == cur_val)
+
+                        data[:, :, rz + bs][next_mask] = cur_val
+                        data[:, :, rz + bs][cur_mask] = next_val
+
+                    #print('swapping prev value {}, cur value {}, and next value {}'.format(prev_val, cur_val, next_val))
+
+    data_dict['sam_seg_{}'.format(main_axis)] = data
+
+    return data_dict
+
+
+

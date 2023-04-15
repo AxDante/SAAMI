@@ -4,14 +4,28 @@ import ipywidgets as widgets
 import os
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.colors import Normalize
 
 
-def visualize_volume_SAM(data_dict, show_widget=False, show_tkinter=False, save_path=""):
+def visualize_volume_SAM(data_dict, show_widget=False, show_tkinter=False, save_path="", axis='z'):
     images = data_dict["image"]
     labels = data_dict["gt_label"]
-    max_slice = images.shape[2] - 1
 
-    masks_z = data_dict['sam_seg_z']
+
+    if axis == 'x':
+        masks = data_dict['sam_seg_x']
+        max_slice = images.shape[0] - 1
+
+    elif axis == 'y':
+        masks = data_dict['sam_seg_y']
+        max_slice = images.shape[1] - 1
+
+    elif axis == 'z':
+        masks = data_dict['sam_seg_z']
+        max_slice = images.shape[2] - 1
+
+    max_mask_value = np.amax(masks)
+
 
     # Function to update the plot based on the slider value
     def get_plot(fig, slice_idx):
@@ -19,40 +33,54 @@ def visualize_volume_SAM(data_dict, show_widget=False, show_tkinter=False, save_
         # Clear previous image for the GUI
         fig.clear()
 
-        image = images[:, :, slice_idx]
-        gt_label = labels[:, :, slice_idx]
-        sam_label = masks_z[:, :, slice_idx]
+        if axis == 'x':
+            image = images[slice_idx, :, :]
+            gt_label = labels[slice_idx, :, :]
+            sam_label = masks[slice_idx, :, :]
+        elif axis == 'y':
+            image = images[:, slice_idx, :]
+            gt_label = labels[:, slice_idx, :]
+            sam_label = masks[:, slice_idx, :]
+        elif axis == 'z':
+            image = images[:, :, slice_idx]
+            gt_label = labels[:, :, slice_idx]
+            sam_label = masks[:, :, slice_idx]
+
+        aspect='auto'
+        # Set fixed color map range for the labels
+        vmin, vmax = 0, max_mask_value
+        norm = Normalize(vmin=vmin, vmax=vmax)
 
         axes = fig.subplots(2, 3)
         (ax1, ax2, ax3), (ax4, ax5, ax6) = axes
 
-        ax1.imshow(image, cmap="gray", aspect="equal")
+        ax1.imshow(image, cmap="gray", aspect=aspect)
         ax1.set_title("Original Image")
         ax1.axis("off")
 
-        label_img = ax2.imshow(gt_label, cmap="jet", aspect="equal")
+        label_img = ax2.imshow(gt_label, cmap="jet", aspect=aspect, norm=norm)
         ax2.set_title("Ground Truth Label")
         ax2.axis("off")
 
         ax3.imshow(image, cmap="gray", aspect="equal")
-        ax3.imshow(gt_label, cmap="jet", alpha=0.5, aspect="equal")
+        ax3.imshow(gt_label, cmap="jet", alpha=0.5, aspect=aspect, norm=norm)
         ax3.set_title("Ground Truth Overlay")
         ax3.axis("off")
 
-        ax4.imshow(image, cmap="gray", aspect="equal")
+        ax4.imshow(image, cmap="gray", aspect=aspect)
         ax4.set_title("Original Image")
         ax4.axis("off")
 
-        label_img = ax5.imshow(sam_label, cmap="jet", aspect="equal")
+        label_img = ax5.imshow(sam_label, cmap="jet", aspect=aspect, norm=norm)
         ax5.set_title("SAM-Mask Label")
         ax5.axis("off")
 
-        ax6.imshow(image, cmap="gray", aspect="equal")
-        ax6.imshow(sam_label, cmap="jet", alpha=0.5, aspect="equal")
+        ax6.imshow(image, cmap="gray", aspect=aspect)
+        ax6.imshow(sam_label, cmap="jet", alpha=0.5, aspect=aspect, norm=norm)
         ax6.set_title("SAM-Mask Overlay")
         ax6.axis("off")
 
-        fig.subplots_adjust(wspace=0.2, hspace=-0.2)
+        fig.subplots_adjust(wspace=0.2, hspace=0.2)
 
         if show_tkinter:
             canvas.draw()
