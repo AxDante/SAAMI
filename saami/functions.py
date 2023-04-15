@@ -1,19 +1,27 @@
-
-from segment_anything import SamAutomaticMaskGenerator, sam_model_registry, SamPredictor
+import os.path
+import urllib.request
 import numpy as np
+from segment_anything import SamAutomaticMaskGenerator, sam_model_registry, SamPredictor
+
+
 
 def get_volume_SAM(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_model_type= "vit_h", device="cuda"): 
+
 
     image = data_dict["image"]
     label = data_dict["label"]
     img_shape = data_dict["image"].shape
 
-    # output = {}
-    # max_slice = image.shape[2] - 1
-    # sam_checkpoint = "models/sam_vit_h_4b8939.pth"
-    # sam_checkpoint = "sam_vit_h_4b8939.pth"
-    # model_type = "vit_h"
-    # device = "cuda"
+
+    # Currently we use VIT-H model "models/sam_vit_h_4b8939.pth"
+    vit_h_url = 'https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth'
+
+    if not os.path.exists(sam_checkpoint):
+        print("SAM checkpoint does not exist, downloading the checkpoint under /models folder ...")
+        if not os.path.exists('models'):
+            os.makedirs('models')
+        urllib.request.urlretrieve(vit_h_url, 'models/sam_vit_h_4b8939.pth')
+
 
     sam = sam_model_registry[sam_model_type](checkpoint=sam_checkpoint)
     sam.to(device=device)

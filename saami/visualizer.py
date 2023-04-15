@@ -2,9 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import ipywidgets as widgets
 from IPython.display import display
-import os  # Import the os module to handle file paths
+import os
+import tkinter as tk
 
-def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, save_path=""):
+def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, show_tkinter=False, save_path=""):
     
     images = data_dict["image"]
     labels = data_dict["gt_label"]
@@ -53,7 +54,7 @@ def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, save_pat
         if show_widget:
             plt.show()
 
-        # Save the plot if save_image is True
+        # Save the plot
         if save_image:
             # Create the save_path directory if it does not exist
             if not os.path.exists(save_path):
@@ -64,9 +65,21 @@ def visualize_volume_SAM(data_dict, show_widget=False, save_image=True, save_pat
             # Save the plot to the specified file
             fig.savefig(filename)
 
+    # Show the ipy widget (which works in notebook environemnt
     if show_widget:
         slider = widgets.IntSlider(min=0, max=max_slice, step=1, value=0)
         widgets.interact(get_plot, slice_idx=slider)
+
+    # Show the tinker GUI
+    elif show_tkinter:
+        window = tk.Tk()
+        window.title("Volume Visualization")
+        slider = tk.Scale(window, from_=0, to=max_slice, orient=tk.HORIZONTAL, command=lambda s: get_plot(int(s)))
+        slider.pack(fill=tk.X)
+        get_plot(0)
+        window.mainloop()
+
+    # Otherwise just run through the volume and save the images
     else:
         for i in range(max_slice):
             get_plot(i) 
