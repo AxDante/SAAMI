@@ -10,11 +10,24 @@ Automatically segment anything on 3D medical images using Meta AI's new **Segmen
 
 ## Installation
 
-to be updated
+To install the dependencies required for "Segment-Anything-Automatically-on-Medical-Image":
+
+- Open a terminal or command prompt.
+
+- Navigate to the directory where the "Segment-Anything-Automatically-on-Medical-Image" project is located.
+
+- Run the following command to install the required dependencies:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Usage
 
-to be updated
+You can run testing on a MRI spine dataset using the following command:
+```bash
+python sammmi_example.py
+```
 
 ## License
 
