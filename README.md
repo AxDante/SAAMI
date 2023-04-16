@@ -12,6 +12,7 @@ This project uses Meta AI's new **Segment Anything Model (SAM)** to autmoaticall
 
 SAAMI automatically matches the labels generated from the 2D masks in each slices to create a consistent and consecutive 3D mask given a 3D input image. The automaticlly generated 3D masks could be useful for further neural network training and fine-tuning in a semi-supervised fashion.
 
+An example is shown below. MRI segmentation is a hard task compared to CT segmentation due to the varying contrast under different imaging sequence used, and signal intensity is not standardized and can vary between scanners, imaging protocols, and patients. Using SAAMI the unsupervised 3D masks could be acquired as shown below:
 
 
 Automatically generated 3D Mask in 3D Slicer (1)       |  Automatically generated 3D Mask in 3D Slicer (2)  
