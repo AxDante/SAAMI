@@ -2,6 +2,7 @@
 import os
 import numpy as np
 import nibabel as nib
+import pickle
 
 def download_progress_hook(block_num, block_size, total_size):
     downloaded = block_num * block_size
@@ -48,3 +49,26 @@ def convert_to_nifti(data_dict, save_path='outputs/test.nii', main_axis='z', aff
     # Save data
     nib.save(nifti_img, save_path)
     print('Nifti data saved to {}'.format(save_path))
+
+
+def save_volume_SAM_data(sam_data, save_path):
+    # Ensure that the directory for the save path exists
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    # Open the file in binary write mode and use pickle.dump to save the dictionary
+    with open(save_path, 'wb') as f:
+        pickle.dump(sam_data, f)
+
+    print('SAM data saved to {}'.format(save_path))
+
+def load_volume_SAM_data(load_path):
+    # Check if the file exists
+    if not os.path.exists(load_path):
+        raise FileNotFoundError('The specified file {} does not exist.'.format(load_path))
+
+    # Open the file in binary read mode and use pickle.load to load the dictionary
+    with open(load_path, 'rb') as f:
+        sam_data = pickle.load(f)
+
+    print('SAM data loaded from to {}'.format(load_path))
+    return sam_data

@@ -9,8 +9,7 @@ from matplotlib.colors import Normalize
 
 def visualize_volume_SAM(data_dict, show_widget=False, show_tkinter=False, save_path="", axis='z'):
     images = data_dict["image"]
-    labels = data_dict["gt_label"]
-
+    labels = data_dict["label"]
 
     if axis == 'x':
         masks = data_dict['sam_seg_x']

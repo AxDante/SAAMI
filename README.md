@@ -38,9 +38,47 @@ pip install -r requirements.txt
 
 You can run testing on a MRI spine dataset using the following command:
 ```bash
-python sammmi_example.py
+# Import SAAMI 
+from saami.SAAMI import SAAMI
+
+# Load the 3D Volumetric data from DATA_DIR 
+SAAMIdata = SAAMI('data/MRI_example')
+
+# Calculates 3D mask for the first volume (idx = 0)
+mask = SAAMIdata.calculate_3d_mask(0)
+
+# Fine-tune 3D mask for the first volume
+new_mask = SAAMIdata.finetune_3d_mask(0)
+
+# Save 3D mask for the first volume
+SAAMIdata.save_mask(0, save_path='outputs/saved_mask.nii')
+
+# visualization for the first volume
+SAAMIdata.visualize(0)
+
 ```
-Detailed usages to be shared soon.
+Currently, the folder should be organized as follow: 
+
+```css
+--- DATA_DIR
+  |--- patient_00
+  |   |--- Images
+  |   |   |--- 3D_image.nii
+  |   |
+  |   |--- Labels
+  |   |   |--- 01.nii
+  |   |   |--- 02.nii
+  |   |   |--- ...
+  |   
+  |--- patient_01
+  |   |--- Images
+  |   |   |--- 3D_image.nii
+  |   |
+  |   |--- Labels
+  |   |   |--- 01.nii
+  |   |   |--- 02.nii
+  |   |   |--- ...
+```
 
 ## License
 

@@ -1,21 +1,10 @@
-import math
 import os.path
 import urllib.request
-from PIL import Image
-import matplotlib.pyplot as plt
-import random
 import numpy as np
-import pickle
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry, SamPredictor
-from saami.utils import most_prevalent_labels, random_index_with_label
 
-def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_model_type= "vit_h", device="cuda", main_axis='z'):
+def get_sam_mask_generator(sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_model_type= "vit_h", device="cuda"):
 
-    image = data_dict["image"]
-    label = data_dict["label"]
-    img_shape = data_dict["image"].shape
-
-    # Currently we use VIT-H model "models/sam_vit_h_4b8939.pth"
     vit_h_url = 'https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth'
 
     if not os.path.exists(sam_checkpoint):
@@ -24,14 +13,9 @@ def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth",
             os.makedirs('models')
         urllib.request.urlretrieve(vit_h_url, 'models/sam_vit_h_4b8939.pth')
 
-
     sam = sam_model_registry[sam_model_type](checkpoint=sam_checkpoint)
     sam.to(device=device)
-
-    # predictor = SamPredictor(sam)
-
     mask_generator = SamAutomaticMaskGenerator(sam)
-
     # mask_generator = SamAutomaticMaskGenerator(
     #     model=sam,
     #     points_per_side=32,
@@ -43,6 +27,15 @@ def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth",
     #     min_mask_region_area=00,  # Requires open-cv to run post-processing
     # )
 
+    return mask_generator
+
+
+def get_volume_SAM_data(data_dict, mask_generator, main_axis='z'):
+
+    image = data_dict["image"]
+    label = data_dict["label"]
+    img_shape = data_dict["image"].shape
+
     sam_data = {}
     sam_data["image"] = data_dict["image"]
     sam_data["gt_label"] = data_dict["label"]
@@ -51,9 +44,6 @@ def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth",
     sam_data["sam_seg_z"] = np.zeros(img_shape)
 
     def process_slice(input_image_slice, mask_generator, axis, start_pos):
-
-
-        input_shape = input_image_slice.shape
 
         mask = np.abs(input_image_slice) > 10
         rows, cols = np.where(mask)
@@ -105,29 +95,7 @@ def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth",
             print('Processing slice {} using SAM model along z axis.'.format(i))
             process_slice(image[:, :, i], mask_generator, 'z', i)
 
-    return sam_data
-
-def save_volume_SAM_data(sam_data, save_path):
-    # Ensure that the directory for the save path exists
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-    # Open the file in binary write mode and use pickle.dump to save the dictionary
-    with open(save_path, 'wb') as f:
-        pickle.dump(sam_data, f)
-
-    print('SAM data saved to {}'.format(save_path))
-
-def load_volume_SAM_data(load_path):
-    # Check if the file exists
-    if not os.path.exists(load_path):
-        raise FileNotFoundError('The specified file {} does not exist.'.format(load_path))
-
-    # Open the file in binary read mode and use pickle.load to load the dictionary
-    with open(load_path, 'rb') as f:
-        sam_data = pickle.load(f)
-
-    print('SAM data loaded from to {}'.format(load_path))
-    return sam_data
+    return sam_data['sam_seg_{}'.format(main_axis)]
 
 def check_grid(data, rx, ry, rz, bs):
     if all(data[rx, ry, rz] == value for value in
@@ -161,7 +129,7 @@ def find_largest_indices(arr):
     # Combine the 2D indices and return them as a list of tuples
     return list(zip(si_2d[0], si_2d[1]))
 
-
+# Handles the propagated information from previous layer
 def modify_layer(array, mapping):
     # Find the majority mapping for each label in the first array
     m_array = np.full(array.shape, -1)
@@ -180,6 +148,7 @@ def modify_layer(array, mapping):
 
     return m_array
 
+# This algorithm performs the fine-tuning on the input 3d mask. Currently supporting the z-axis (AP axis)
 def fine_tune_3d_masks(data_dict, main_axis='z'):
 
     data = data_dict['sam_seg_{}'.format(main_axis)]
@@ -197,13 +166,14 @@ def fine_tune_3d_masks(data_dict, main_axis='z'):
         mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels)
         adj_data[:, :, rz - 1] = modify_layer(adj_data[:, :, rz - 1], mapping)
 
-    # Second loop: from center to  data_shape[2]
+    # Second loop: from center to data_shape[2]
     for rz in range(center, data_shape[2] - 1):
         print('adjusting masks for layer {}'.format(rz+1))
         mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels)
         adj_data[:, :, rz + 1] = modify_layer(adj_data[:, :, rz + 1], mapping)
 
-    data_dict['sam_seg_{}'.format(main_axis)] = adj_data
+    # data_dict['sam_seg_{}'.format(main_axis)] = adj_data
 
-    return data_dict
+    return adj_data
+
 

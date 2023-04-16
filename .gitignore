@@ -2,3 +2,4 @@ models/
 outputs/
 *.jpeg
 tests/
+*.pyc
