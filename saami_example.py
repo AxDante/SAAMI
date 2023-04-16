@@ -15,4 +15,5 @@ else:
 
 spine_sam_data = fine_tune_3d_masks(spine_sam_data)
 
+
 visualize_volume_SAM(spine_sam_data, save_path=os.path.join(os.getcwd(), "outputs/example_images"), show_tkinter=True)
