@@ -34,6 +34,30 @@ To install the dependencies required for "Segment-Anything-Automatically-on-Medi
 pip install -r requirements.txt
 ```
 
+### Data Folder Structure
+Currently, the folder should be organized as follow: 
+
+```css
+--- DATA_DIR
+  |--- patient_00
+  |   |--- Images
+  |   |   |--- 3D_image.nii
+  |   |
+  |   |--- Labels
+  |   |   |--- 01.nii
+  |   |   |--- 02.nii
+  |   |   |--- ...
+  |   
+  |--- patient_01
+  |   |--- Images
+  |   |   |--- 3D_image.nii
+  |   |
+  |   |--- Labels
+  |   |   |--- 01.nii
+  |   |   |--- 02.nii
+  |   |   |--- ...
+```
+
 ## Usage
 
 You can run testing on a MRI spine dataset using the following command:
@@ -57,28 +81,14 @@ SAAMIdata.save_mask(0, save_path='outputs/saved_mask.nii')
 SAAMIdata.visualize(0)
 
 ```
-Currently, the folder should be organized as follow: 
 
-```css
---- DATA_DIR
-  |--- patient_00
-  |   |--- Images
-  |   |   |--- 3D_image.nii
-  |   |
-  |   |--- Labels
-  |   |   |--- 01.nii
-  |   |   |--- 02.nii
-  |   |   |--- ...
-  |   
-  |--- patient_01
-  |   |--- Images
-  |   |   |--- 3D_image.nii
-  |   |
-  |   |--- Labels
-  |   |   |--- 01.nii
-  |   |   |--- 02.nii
-  |   |   |--- ...
+You can also run the `example.py` script directly in the terminal. This will save the predicted mask under the outputs folder and will launch the ipywidget for visualization.
+
+```bash
+python example.py
 ```
+
+Enjoy!
 
 ## License
 
