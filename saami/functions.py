@@ -107,7 +107,6 @@ def get_volume_SAM_data(data_dict, sam_checkpoint="models/sam_vit_h_4b8939.pth",
 
     return sam_data
 
-
 def save_volume_SAM_data(sam_data, save_path):
     # Ensure that the directory for the save path exists
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -117,7 +116,6 @@ def save_volume_SAM_data(sam_data, save_path):
         pickle.dump(sam_data, f)
 
     print('SAM data saved to {}'.format(save_path))
-
 
 def load_volume_SAM_data(load_path):
     # Check if the file exists
@@ -131,102 +129,6 @@ def load_volume_SAM_data(load_path):
     print('SAM data loaded from to {}'.format(load_path))
     return sam_data
 
-
-# def fine_tune_3d_masks(data_dict, main_axis='z', sample_size=10000, search_size=5):
-#
-#     data = data_dict['sam_seg_{}'.format(main_axis)]
-#     data_shape = data.shape
-#     print(data_shape)
-#     bs = int((search_size-1)/2)
-#
-#     check_list = []
-#     sid = 0
-#     while sid < sample_size:
-#
-#         if sid % 30 == 0:
-#             print('sample ID : {}'.format(sid))
-#
-#         if not check_list:
-#             rx = random.randint(bs, data_shape[0] - bs - 1)
-#             ry = random.randint(bs, data_shape[1] - bs - 1)
-#             rz = random.randint(bs, data_shape[2] - bs - 1)
-#             check_list, data = adjust_mask(data, rx, ry, rz, bs, check_list)
-#             sid += 1
-#         else:
-#             rx, ry, rz = check_list.pop()
-#             check_list, data = adjust_mask(data, rx, ry, rz, bs, check_list)
-#             sid += 1
-#
-#                     #print('swapping prev value {}, cur value {}, and next value {}'.format(prev_val, cur_val, next_val))
-#
-#     data_dict['sam_seg_{}'.format(main_axis)] = data
-#
-#     return data_dict
-#
-
-#
-# def fine_tune_3d_masks(data_dict, main_axis='z', sample_size=10000, search_size=5):
-#
-#     data = data_dict['sam_seg_{}'.format(main_axis)]
-#     data_shape = data.shape
-#     adj_mask = np.full(data_shape, False)
-#     adj_data = np.zeros(data_shape)
-#
-#     bs = int((search_size-1)/2)
-#
-#     current_label = 0
-#     for rx in range(bs, data_shape[0]-bs, 10):
-#         for ry in range(bs, data_shape[1] - bs, 10):
-#             print('rx {}, ry {}'.format(rx, ry))
-#             check_list = []
-#             rz = random.randint(bs, data_shape[2] - bs - 1)
-#             check_list, data, adj_mask = adjust_mask(data, adj_mask, rx, ry, rz, bs, check_list)
-#             while check_list:
-#                 _, _, rz = check_list.pop()
-#                 check_list, data, adj_mask = adjust_mask(data, adj_mask, rx, ry, rz, bs, check_list)
-#
-#     data_dict['sam_seg_{}'.format(main_axis)] = data
-#
-#     return data_dict
-
-#
-# def adjust_mask(data, adj_mask, rx, ry, rz, bs, check_list, main_axis='z'):
-#
-#     if main_axis == 'z':
-#         # if adj_mask[rx, ry, rz] == False:
-#         cur, cur_val = check_grid(data, rx, ry, rz, bs)
-#         if cur:
-#             try:
-#                 prev, prev_val = check_grid(data, rx, ry, rz - bs, bs)
-#                 next, next_val = check_grid(data, rx, ry, rz + bs, bs)
-#
-#                 if prev and next:
-#
-#                     if cur_val != prev_val:
-#                         prev_mask = (data[:, :, rz - bs] == prev_val)
-#                         cur_mask = (data[:, :, rz - bs] == cur_val)
-#                         data[:, :, rz - bs][prev_mask] = cur_val
-#                         data[:, :, rz - bs][cur_mask] = prev_val
-#                         check_list.append((rx, ry, rz-bs))
-#                         print('swapping prev value {}, cur value {}'.format(prev_val, cur_val))
-#
-#                     if cur_val != next_val:
-#                         next_mask = (data[:, :, rz + bs] == next_val)
-#                         cur_mask = (data[:, :, rz + bs] == cur_val)
-#
-#                         data[:, :, rz + bs][next_mask] = cur_val
-#                         data[:, :, rz + bs][cur_mask] = next_val
-#                         check_list.append((rx, ry, rz+bs))
-#                         print('swapping cur value {}, and next value {}'.format(cur_val, next_val))
-#
-#
-#             except:
-#                 pass
-#
-#     return check_list, data, adj_mask
-
-
-
 def check_grid(data, rx, ry, rz, bs):
     if all(data[rx, ry, rz] == value for value in
            [data[rx - bs, ry, rz], data[rx + bs, ry, rz], data[rx, ry - bs, rz], data[rx, ry + bs, rz]]):
@@ -234,96 +136,70 @@ def check_grid(data, rx, ry, rz, bs):
     else:
         return False, -1
 
-
-
-#
-# def fine_tune_3d_masks(data_dict, main_axis='z', sample_size=1000, search_size=5):
-#     data = data_dict['sam_seg_{}'.format(main_axis)]
-#     data_shape = data.shape
-#     adj_mask = np.full(data_shape, False)
-#     adj_data = np.full(data_shape, -1)
-#
-#     bs = int((search_size - 1) / 2)
-#
-#     # Start with the most prevalent labels
-#     mpl, mpl_occ = most_prevalent_labels(data)
-#     # Determine the number of samples for each label
-#     sample_list = (np.asarray(mpl_occ) * sample_size / np.prod(data_shape)).astype(int)
-#     print(mpl)
-#     print(mpl_occ)
-#     print(sample_list)
-#
-#
-#     for i in range(len(mpl)):
-#         label = mpl[i]
-#         print('Testing label {}, with {} samples'.format(label, sample_list[i]))
-#         for s in range(sample_list[i]):
-#             # Get a random starting element with specified label vale
-#             rx, ry, rz = random_index_with_label(data, label)
-#             print("Starting: rx, ry, rz: ({}, {}, {})".format(rx, ry, rz))
-#
-#             # Paint all values in adj_data
-#             data_mask = (data[:, :, rz] == label) & (adj_data[:, :, rz] == -1)
-#             adj_data[:, :, rz][data_mask] = label
-#
-#             check_list = []
-#             check_list, data, adj_data = adjust_mask(data, adj_data, label, rx, ry, rz, 1, bs, check_list) # propagate along +z
-#             check_list, data, adj_data = adjust_mask(data, adj_data, label, rx, ry, rz, -1, bs, check_list) # propagate along -z
-#
-#             while check_list:
-#                 _, _, rz, dir = check_list.pop()
-#                 check_list, data, adj_data = adjust_mask(data, adj_data, label, rx, ry, rz, dir, bs, check_list)
-#
-#
-#     data_dict['sam_seg_{}'.format(main_axis)] = adj_data
-#
-#     return data_dict
-#
-
-
-
 def calculate_mapping(array_1, array_2, num_labels):
+
     if array_1.shape != array_2.shape:
         raise ValueError("The input arrays should have the same shape.")
 
-    array_1 = array_1.astype(int)
-    array_2 = array_2.astype(int)
-
-    mapping = np.zeros((num_labels, num_labels), dtype=int)
+    mapping = np.zeros((num_labels + 1, num_labels + 1), dtype=int)
 
     for i in range(array_1.shape[0]):
         for j in range(array_1.shape[1]):
-            val_1 = array_1[i, j]
-            val_2 = array_2[i, j]
+            val_1 = array_1[i, j].astype(int)
+            val_2 = array_2[i, j].astype(int)
             mapping[val_1, val_2] += 1
 
     return mapping
 
+def find_largest_indices(arr):
+    # Flatten the array and get the indices that would sort it in descending order
+    si = np.argsort(arr.flatten())[::-1]
+
+    # Convert the flattened indices to 2D indices
+    si_2d = np.unravel_index(si, arr.shape)
+
+    # Combine the 2D indices and return them as a list of tuples
+    return list(zip(si_2d[0], si_2d[1]))
+
+
 def modify_layer(array, mapping):
     # Find the majority mapping for each label in the first array
-    majority_mapping = np.argmax(mapping, axis=1)
+    m_array = np.full(array.shape, -1)
+    ilist = find_largest_indices(mapping)
 
-    # Create a lookup table for modifying the input array based on the majority mapping
-    lookup_table = np.arange(mapping.shape[0])
-    for i, majority_label in enumerate(majority_mapping):
-        lookup_table[i] = majority_label
+    alist = []
+    while len(ilist) > 0:
+        pval, cval = ilist.pop(0)
+        valid = not(any(pval == t[0] for t in alist) or any(cval == t[1] for t in alist))
+        if valid:
+            alist.append((pval, cval))
 
+    # For each assignment in final assignment list
+    for a in alist:
+        m_array[array==a[1]] = a[0]
 
-    # Modify the input array based on the lookup table
-    modified_array = lookup_table[array]
-
-    return modified_array
-
+    return m_array
 
 def fine_tune_3d_masks(data_dict, main_axis='z'):
 
     data = data_dict['sam_seg_{}'.format(main_axis)]
     data_shape = data.shape
 
-    adj_data = data.copy()
+    adj_data = data.copy().astype(int)
     max_labels = np.amax(adj_data).astype(int)
 
-    for rz in range(data_shape[2]):
+    center = data_shape[2] // 2
+    print('Using mask layer {} as center'.format(center))
+
+    # First loop: from center to 0
+    for rz in range(center, 0, -1):
+        print('adjusting masks for layer {}'.format(rz-1))
+        mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels)
+        adj_data[:, :, rz - 1] = modify_layer(adj_data[:, :, rz - 1], mapping)
+
+    # Second loop: from center to  data_shape[2]
+    for rz in range(center, data_shape[2] - 1):
+        print('adjusting masks for layer {}'.format(rz+1))
         mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels)
         adj_data[:, :, rz + 1] = modify_layer(adj_data[:, :, rz + 1], mapping)
 
@@ -331,160 +207,3 @@ def fine_tune_3d_masks(data_dict, main_axis='z'):
 
     return data_dict
 
-
-
-
-
-#
-# def adjust_mask(data, adj_data, label, rx, ry, rz, dir, bs, check_list, main_axis='z'):
-#
-#     if main_axis == 'z':
-#         try:
-#             print('checking {},{},{}'.format(rx, ry, rz))
-#             cur, cur_val = check_grid(data, rx, ry, rz, bs)
-#             print(cur)
-#             print(cur_val)
-#
-#             if cur and cur_val == label:
-#                 tar, tar_val = check_grid(data, rx, ry, rz + dir * bs, bs)
-#                 if tar and cur_val != tar_val:
-#                     tar_mask = (data[:, :, rz + dir * bs] == tar_val)
-#                     adj_data[:, :, rz + dir * bs][tar_mask] = cur_val
-#                     check_list.append((rx, ry, rz + dir * bs, dir))
-#                     print('swapping, adjusting the value in layer {} to {}'.format(rz + dir * bs, cur_val))
-#                     print(adj_data[:, :, rz + dir * bs])
-#                     print('=========')
-#         except:
-#             pass
-#
-#     return check_list, data, adj_data
-#
-#
-# def fine_tune_3d_masks(data_dict, main_axis='z', sample_size=50, search_size=5):
-#
-#     data = data_dict['sam_seg_{}'.format(main_axis)]
-#     data_shape = data.shape
-#     adj_mask = np.full(data_shape, False)
-#     adj_data = np.full(data_shape, -1)
-#
-#     bs = int((search_size - 1) / 2)
-#     current_label = 0
-#     for rx in range(bs, data_shape[0]-bs, 10):
-#         for ry in range(bs, data_shape[1] - bs, 10):
-#             print('rx {}, ry {}'.format(rx, ry))
-#             check_list = []
-#             rz = random.randint(bs, data_shape[2] - bs - 1)
-#             check_list, data, adj_mask = adjust_mask(data, adj_mask, rx, ry, rz, bs, check_list)
-#             while check_list:
-#                 _, _, rz = check_list.pop()
-#                 check_list, data, adj_mask = adjust_mask(data, adj_mask, rx, ry, rz, bs, check_list)
-#
-#
-#     for sid in range(data_shape[2]):
-#
-#         s_data = data[:, :, sid]
-#         mpl, mpl_occ = most_prevalent_labels(s_data)
-#         sample_list = (np.asarray(mpl_occ) * sample_size / np.prod(data_shape)).astype(int)
-#
-#         for i in range(len(mpl)):
-#             label = mpl[i]
-#             print('Testing label {}, with {} samples'.format(label, sample_list[i]))
-#             for s in range(sample_list[i]):
-#                 # Get a random starting element with specified label vale
-#                 rx, ry = random_index_with_label(s_data, label)
-#                 print("Starting: rx, ry, rz: ({}, {}, {})".format(rx, ry, sid))
-#
-#                 # Paint all values in adj_data
-#                 data_mask = (data[:, :, sid] == label) & (adj_data[:, :, sid] == -1)
-#                 adj_data[:, :, sid][data_mask] = label
-#                 print(adj_data[:, :, sid])
-#
-#
-#
-
-
-
-
-
-
-
-
-
-# def fine_tune_3d_masks(data_dict, main_axis='z', sample_size=50, search_size=5):
-#
-#     data = data_dict['sam_seg_{}'.format(main_axis)]
-#     data_shape = data.shape
-#     adj_mask = np.full(data_shape, False)
-#     adj_data = np.full(data_shape, -1)
-#
-#     bs = int((search_size - 1) / 2)
-#
-#
-#     for sid in range(data_shape[2]):
-#
-#         s_data = data[:, :, sid]
-#         mpl, mpl_occ = most_prevalent_labels(s_data)
-#         sample_list = (np.asarray(mpl_occ) * sample_size / np.prod(data_shape)).astype(int)
-#
-#         for i in range(len(mpl)):
-#             label = mpl[i]
-#             print('Testing label {}, with {} samples'.format(label, sample_list[i]))
-#             for s in range(sample_list[i]):
-#                 # Get a random starting element with specified label vale
-#                 rx, ry = random_index_with_label(s_data, label)
-#                 print("Starting: rx, ry, rz: ({}, {}, {})".format(rx, ry, sid))
-#
-#                 # Paint all values in adj_data
-#                 data_mask = (data[:, :, sid] == label) & (adj_data[:, :, sid] == -1)
-#                 adj_data[:, :, sid][data_mask] = label
-#                 print(adj_data[:, :, sid])
-#                 print('wwww')
-#
-#
-#
-#                 # check_list = []
-#                 # check_list, data, adj_data = adjust_mask(data, adj_data, label, rx, ry, sid, 1, bs, check_list) # propagate along +z
-#                 # check_list, data, adj_data = adjust_mask(data, adj_data, label, rx, ry, sid, -1, bs, check_list) # propagate along -z
-#                 #
-#                 # while check_list:
-#                 #     _, _, rz, dir = check_list.pop()
-#                 #     check_list, data, adj_data = adjust_mask(data, adj_data, label, rx, ry, sid, dir, bs, check_list)
-#                 #
-#
-#
-#
-
-
-    #
-    #
-    # while sample_id < sample_size:
-    #     sample_id += 1
-    #
-    #     most_prevalent_labels(data)
-    #
-    #
-    #
-    # for i in range(len(mpl)):
-    #     label = mpl[i]
-    #     print('Testing label {}, with {} samples'.format(label, sample_list[i]))
-    #     for s in range(sample_list[i]):
-    #         # Get a random starting element with specified label vale
-    #         rx, ry, rz = random_index_with_label(data, label)
-    #         print("Starting: rx, ry, rz: ({}, {}, {})".format(rx, ry, rz))
-    #
-    #         # Paint all values in adj_data
-    #         data_mask = (data[:, :, rz] == label) & (adj_data[:, :, rz] == -1)
-    #         adj_data[:, :, rz][data_mask] = label
-    #
-    #         check_list = []
-    #         check_list, data, adj_data = adjust_mask(data, adj_data, label, rx, ry, rz, 1, bs, check_list) # propagate along +z
-    #         check_list, data, adj_data = adjust_mask(data, adj_data, label, rx, ry, rz, -1, bs, check_list) # propagate along -z
-    #
-    #         while check_list:
-    #             _, _, rz, dir = check_list.pop()
-    #             check_list, data, adj_data = adjust_mask(data, adj_data, label, rx, ry, rz, dir, bs, check_list)
-    #
-    #
-    # data_dict['sam_seg_{}'.format(main_axis)] = adj_data
-    #
-    # return data_dict

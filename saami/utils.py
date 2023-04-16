@@ -1,5 +1,7 @@
 "Utility file for saami package"
+import os
 import numpy as np
+import nibabel as nib
 
 def download_progress_hook(block_num, block_size, total_size):
     downloaded = block_num * block_size
@@ -29,3 +31,20 @@ def random_index_with_label(data, label):
             return (-1, -1)
         random_index = indices[np.random.choice(indices.shape[0])]
         return tuple(random_index)
+
+def convert_to_nifti(data_dict, save_path='outputs/test.nii', main_axis='z', affine=np.eye(4)):
+
+    data = data_dict['sam_seg_{}'.format(main_axis)]
+
+    # Convert data to nifti image
+    data_array = np.array(data)
+    nifti_img = nib.Nifti1Image(data_array, affine)
+
+    # Check if the saving folder exists
+    folder_path = os.path.dirname(save_path)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    # Save data
+    nib.save(nifti_img, save_path)
+    print('Nifti data saved to {}'.format(save_path))
