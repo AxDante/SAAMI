@@ -96,6 +96,9 @@ python example.py
 
 Enjoy!
 
+## Contact
+Contact me (pku1@jh.edu) if you encounter an issue.
+
 ## License
 
 Distributed under the terms of the [Apache Software License 2.0] license,
