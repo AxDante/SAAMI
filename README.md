@@ -2,7 +2,11 @@
 
 [![License Apache Software License 2.0](https://img.shields.io/pypi/l/napari-sam.svg?color=green)](https://github.com/MIC-DKFZ/napari-sam/raw/main/LICENSE)
 
-Automatically segment anything on 3D medical images using Meta AI's new **Segment Anything Model (SAM)**. This is a simple project that helps the user visualize the automaticlly generated segmentation using the ``SamAutomaticMaskGenerator`` function on medical images. 
+
+This project uses Meta AI's new **Segment Anything Model (SAM)** to autmoatically genrate 3D masks. This is a simple project that helps the user visualize the automaticlly generated segmentation using the ``SamAutomaticMaskGenerator`` function on medical images. 
+
+
+**No more prompting needed to generate 3D medical masks!**
 
 
 
@@ -10,10 +14,10 @@ SAAMI automatically matches the labels generated from the 2D masks in each slice
 
 
 
-SAAMI provides a GUI visualization as follow:
+SAAMI provides a ipywidget visualization as follow:
 ![](images/spine_example.png)
 
-Automatically generated 3D Mask View 1             |  Automatically generated 3D Mask View 2 
+Automatically generated 3D Mask in 3D Slicer (1)       |  Automatically generated 3D Mask in 3D Slicer (2)  
 :-------------------------:|:-------------------------:
 ![](images/3d_automatic_mask_01.png)  |  ![](images/3d_automatic_mask_02.png)
 
@@ -61,7 +65,7 @@ Currently, the folder should be organized as follow:
 ## Usage
 
 You can run testing on a MRI spine dataset using the following command:
-```bash
+```python
 # Import SAAMI 
 from saami.SAAMI import SAAMI
 
