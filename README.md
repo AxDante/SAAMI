@@ -88,7 +88,7 @@ SAAMIdata.visualize(0)
 
 ```
 
-You can also run the `example.py` script directly in the terminal. This will save the predicted mask under the outputs folder and will launch the ipywidget for visualization. Currently the pacakge only focus on the segmentation along the coronal axis (the naming of z-axis in the package is inaccurate and will be fixed soon)  and will be adjusted soon.
+You can also run the `example.py` script directly in the terminal. This will save the predicted mask under the outputs folder and will launch the ipywidget for visualization. Currently the pacakge only focus on the segmentation along the coronal axis (the naming of z-axis in this package not quite inaccurate) and will be adjusted soon.
 
 ```bash
 python example.py
