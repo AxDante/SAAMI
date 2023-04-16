@@ -14,13 +14,14 @@ SAAMI automatically matches the labels generated from the 2D masks in each slice
 
 
 
-SAAMI provides a ipywidget visualization as follow:
-![](images/spine_example.png)
-
 Automatically generated 3D Mask in 3D Slicer (1)       |  Automatically generated 3D Mask in 3D Slicer (2)  
 :-------------------------:|:-------------------------:
 ![](images/3d_automatic_mask_01.png)  |  ![](images/3d_automatic_mask_02.png)
 
+
+
+SAAMI provides a ipywidget visualization as follow:
+![](images/spine_example.png)
 
 The algorithm to automatically match the labels and fine-tuning of the labels is work in progress.
 
