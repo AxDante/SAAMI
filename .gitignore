@@ -3,3 +3,4 @@ outputs/
 *.jpeg
 tests/
 *.pyc
+data/
