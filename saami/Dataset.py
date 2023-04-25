@@ -30,11 +30,19 @@ class VolumeDataset(Dataset):
 
             label_files = os.listdir(label_folder)
 
+<<<<<<< HEAD
             combined_labels =  [f for f in label_files if f.endswith("combined_seg.nii.gz")]
 
             if len(combined_labels) > 0 :
                 # Use the combined file if it exists
                 label_data = nib.load(os.path.join(label_folder, combined_labels[0])).get_fdata()
+=======
+            combined_label_file =  [f for f in label_files if f.endswith("combined_seg.nii.gz")][0] 
+
+            if combined_label_file:
+                # Use the combined file if it exists
+                label_data = nib.load(os.path.join(label_folder, combined_label_file)).get_fdata()
+>>>>>>> 7c86354650129ae3adc54d7a8d5091cb30643ec7
             else:
                 # Otherwise, combine all label files
                 for label_file in os.listdir(label_folder):

@@ -172,7 +172,11 @@ def modify_layer(array, mapping):
     return m_array
 
 
+<<<<<<< HEAD
 def fine_tune_3d_masks(data_dict, main_axis='z', neighbor_size=0):
+=======
+def fine_tune_3d_masks(data_dict, main_axis='z'):
+>>>>>>> 7c86354650129ae3adc54d7a8d5091cb30643ec7
     data = data_dict['sam_seg_{}'.format(main_axis)]
     data_shape = data.shape
 
@@ -183,6 +187,7 @@ def fine_tune_3d_masks(data_dict, main_axis='z', neighbor_size=0):
     print('Using mask layer {} as center'.format(center))
 
     total_iterations = (center - 0) + (data_shape[2] - 1 - center)
+<<<<<<< HEAD
 
     print('Adjusting remaining layers...')
 
@@ -190,12 +195,25 @@ def fine_tune_3d_masks(data_dict, main_axis='z', neighbor_size=0):
         # First loop: from center to 0
         for rz in range(center, 0, -1):
             mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels, neighbor_size=neighbor_size)
+=======
+
+    print('Adjusting remaining layers...')
+
+    with tqdm(total=total_iterations, desc="Adjusting masks", unit="layer") as pbar:
+        # First loop: from center to 0
+        for rz in range(center, 0, -1):
+            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels)
+>>>>>>> 7c86354650129ae3adc54d7a8d5091cb30643ec7
             adj_data[:, :, rz - 1] = modify_layer(adj_data[:, :, rz - 1], mapping)
             pbar.update(1)
 
         # Second loop: from center to data_shape[2]
         for rz in range(center, data_shape[2] - 1):
+<<<<<<< HEAD
             mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels, neighbor_size=neighbor_size)
+=======
+            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels)
+>>>>>>> 7c86354650129ae3adc54d7a8d5091cb30643ec7
             adj_data[:, :, rz + 1] = modify_layer(adj_data[:, :, rz + 1], mapping)
             pbar.update(1)
 
