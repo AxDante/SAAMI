@@ -5,10 +5,11 @@ from saami.functions import get_volume_SAM_data, fine_tune_3d_masks, get_sam_mas
 from saami.visualizer import visualize_volume_SAM
 
 class SAAMI:
-    def __init__(self, data_dir, mask_generator=None, main_axis='z'):
+    def __init__(self, data_dir, mask_generator=None, main_axis='z', roi=None):
         self.data_dir = data_dir
+        self.roi = roi
         self.mask_generator = mask_generator if mask_generator else get_sam_mask_generator()
-        self.vol_dataset = VolumeDataset(data_dir)
+        self.vol_dataset = VolumeDataset(data_dir, roi=self.roi)
         self.main_axis = main_axis
 
     def calculate_3d_mask(self, idx):

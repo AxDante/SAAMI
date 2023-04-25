@@ -1,6 +1,7 @@
 import os.path
 import urllib.request
 import numpy as np
+from tqdm import tqdm
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry, SamPredictor
 
 def get_sam_mask_generator(sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_model_type= "vit_h", device="cuda"):
@@ -79,21 +80,29 @@ def get_volume_SAM_data(data_dict, mask_generator, main_axis='z'):
 
     if 'x' in axes:
         # For 'x' axis
-        for i in range(img_shape[0]):
-            print('Processing slice {} using SAM model along x axis.'.format(i))
-            process_slice(image[i, :, :], mask_generator, 'x', i)
+        total_slices = img_shape[0]
+        print('Processing slice using SAM model along x axis.')
+        with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
+            for i in range(total_slices):
+                process_slice(image[:, :, i], mask_generator, 'x', i)
+                pbar.update(1)
+
 
     if 'y' in axes:
-        # For 'y' axis
-        for i in range(img_shape[1]):
-            print('Processing slice {} using SAM model along y axis.'.format(i))
-            process_slice(image[:, i, :], mask_generator, 'y', i)
+        total_slices = img_shape[1]
+        print('Processing slice using SAM model along y axis.')
+        with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
+            for i in range(total_slices):
+                process_slice(image[:, :, i], mask_generator, 'y', i)
+                pbar.update(1)
 
     if 'z' in axes:
-        # For 'z' axis
-        for i in range(img_shape[2]):
-            print('Processing slice {} using SAM model along z axis.'.format(i))
-            process_slice(image[:, :, i], mask_generator, 'z', i)
+        total_slices = img_shape[2]
+        print('Processing slice using SAM model along z axis.')
+        with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
+            for i in range(total_slices):
+                process_slice(image[:, :, i], mask_generator, 'z', i)
+                pbar.update(1)
 
     return sam_data['sam_seg_{}'.format(main_axis)]
 
@@ -148,9 +157,8 @@ def modify_layer(array, mapping):
 
     return m_array
 
-# This algorithm performs the fine-tuning on the input 3d mask. Currently supporting the z-axis (AP axis)
-def fine_tune_3d_masks(data_dict, main_axis='z'):
 
+def fine_tune_3d_masks(data_dict, main_axis='z'):
     data = data_dict['sam_seg_{}'.format(main_axis)]
     data_shape = data.shape
 
@@ -160,20 +168,22 @@ def fine_tune_3d_masks(data_dict, main_axis='z'):
     center = data_shape[2] // 2
     print('Using mask layer {} as center'.format(center))
 
-    # First loop: from center to 0
-    for rz in range(center, 0, -1):
-        print('adjusting masks for layer {}'.format(rz-1))
-        mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels)
-        adj_data[:, :, rz - 1] = modify_layer(adj_data[:, :, rz - 1], mapping)
+    total_iterations = (center - 0) + (data_shape[2] - 1 - center)
+    
+    print('Adjusting remaining layers...')
 
-    # Second loop: from center to data_shape[2]
-    for rz in range(center, data_shape[2] - 1):
-        print('adjusting masks for layer {}'.format(rz+1))
-        mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels)
-        adj_data[:, :, rz + 1] = modify_layer(adj_data[:, :, rz + 1], mapping)
+    with tqdm(total=total_iterations, desc="Adjusting masks", unit="layer") as pbar:
+        # First loop: from center to 0
+        for rz in range(center, 0, -1):
+            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels)
+            adj_data[:, :, rz - 1] = modify_layer(adj_data[:, :, rz - 1], mapping)
+            pbar.update(1)
 
-    # data_dict['sam_seg_{}'.format(main_axis)] = adj_data
+        # Second loop: from center to data_shape[2]
+        for rz in range(center, data_shape[2] - 1):
+            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels)
+            adj_data[:, :, rz + 1] = modify_layer(adj_data[:, :, rz + 1], mapping)
+            pbar.update(1)
 
     return adj_data
-
 
