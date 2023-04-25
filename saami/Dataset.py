@@ -48,6 +48,7 @@ class VolumeDataset(Dataset):
             image = image_data[:, :, :]
             label = label_data[:, :, :]
 
+            # ROI adjustment
             if roi:
                 image = image_data[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1], :]
                 label = label_data[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1], :]
