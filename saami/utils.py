@@ -38,7 +38,7 @@ def convert_to_nifti(data_dict, save_path='outputs/test.nii', main_axis='z', aff
     data = data_dict['sam_seg_{}'.format(main_axis)]
 
     # Convert data to nifti image
-    data_array = np.array(data)
+    data_array = np.array(data, dtype=np.int16)  # Convert the data type to int16
     nifti_img = nib.Nifti1Image(data_array, affine)
 
     # Check if the saving folder exists

@@ -172,7 +172,7 @@ def modify_layer(array, mapping):
     return m_array
 
 
-def fine_tune_3d_masks(data_dict, main_axis='z'):
+def fine_tune_3d_masks(data_dict, main_axis='z', neighbor_size=0):
     data = data_dict['sam_seg_{}'.format(main_axis)]
     data_shape = data.shape
 
@@ -189,13 +189,13 @@ def fine_tune_3d_masks(data_dict, main_axis='z'):
     with tqdm(total=total_iterations, desc="Adjusting masks", unit="layer") as pbar:
         # First loop: from center to 0
         for rz in range(center, 0, -1):
-            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels)
+            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels, neighbor_size=neighbor_size)
             adj_data[:, :, rz - 1] = modify_layer(adj_data[:, :, rz - 1], mapping)
             pbar.update(1)
 
         # Second loop: from center to data_shape[2]
         for rz in range(center, data_shape[2] - 1):
-            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels)
+            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels, neighbor_size=neighbor_size)
             adj_data[:, :, rz + 1] = modify_layer(adj_data[:, :, rz + 1], mapping)
             pbar.update(1)
 

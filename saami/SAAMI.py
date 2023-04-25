@@ -22,9 +22,9 @@ class SAAMI:
         data = self.vol_dataset[idx]
         return data['sam_seg_{}'.format(self.main_axis)]
 
-    def finetune_3d_mask(self, idx):
+    def finetune_3d_mask(self, idx, neighbor_size=3):
         data = self.vol_dataset[idx]
-        mask_data = fine_tune_3d_masks(data, main_axis=self.main_axis)
+        mask_data = fine_tune_3d_masks(data, main_axis=self.main_axis, neighbor_size=neighbor_size)
         self.vol_dataset.update_data(mask_data, 'sam_seg_{}'.format(self.main_axis), idx)
         return mask_data
 
