@@ -4,8 +4,8 @@ import numpy as np
 from tqdm import tqdm
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry, SamPredictor
 
-def get_sam_mask_generator(sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_model_type= "vit_h", device="cuda"):
 
+def get_sam_mask_generator(sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_model_type="vit_h", device="cuda"):
     vit_h_url = 'https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth'
 
     if not os.path.exists(sam_checkpoint):
@@ -32,7 +32,6 @@ def get_sam_mask_generator(sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_mod
 
 
 def get_volume_SAM_data(data_dict, mask_generator, main_axis='z'):
-
     image = data_dict["image"]
     label = data_dict["label"]
     img_shape = data_dict["image"].shape
@@ -75,7 +74,6 @@ def get_volume_SAM_data(data_dict, mask_generator, main_axis='z'):
         elif axis == 'z':
             sam_data['sam_seg_z'][top:bottom + 1, left:right + 1, start_pos] = masks_label
 
-
     axes = ['x', 'y', 'z'] if main_axis == 'all' else [main_axis]
 
     if 'x' in axes:
@@ -86,7 +84,6 @@ def get_volume_SAM_data(data_dict, mask_generator, main_axis='z'):
             for i in range(total_slices):
                 process_slice(image[:, :, i], mask_generator, 'x', i)
                 pbar.update(1)
-
 
     if 'y' in axes:
         total_slices = img_shape[1]
@@ -106,15 +103,24 @@ def get_volume_SAM_data(data_dict, mask_generator, main_axis='z'):
 
     return sam_data['sam_seg_{}'.format(main_axis)]
 
-def check_grid(data, rx, ry, rz, bs):
-    if all(data[rx, ry, rz] == value for value in
-           [data[rx - bs, ry, rz], data[rx + bs, ry, rz], data[rx, ry - bs, rz], data[rx, ry + bs, rz]]):
-        return True, data[rx, ry, rz]
+
+#
+# def check_grid(data, rx, ry, rz, bs):
+#     if all(data[rx, ry, rz] == value for value in
+#            [data[rx - bs, ry, rz], data[rx + bs, ry, rz], data[rx, ry - bs, rz], data[rx, ry + bs, rz]]):
+#         return True, data[rx, ry, rz]
+#     else:
+#         return False, -1
+
+def check_grid(arr, rx, ry, ns=2):
+    if all(arr[rx, ry] == value for value in
+           [arr[rx - ns, ry], arr[rx + ns, ry], arr[rx, ry - ns], arr[rx, ry + ns]]):
+        return True
     else:
-        return False, -1
+        return False
 
-def calculate_mapping(array_1, array_2, num_labels):
 
+def calculate_mapping(array_1, array_2, num_labels, neighbor_size=0):
     if array_1.shape != array_2.shape:
         raise ValueError("The input arrays should have the same shape.")
 
@@ -124,9 +130,16 @@ def calculate_mapping(array_1, array_2, num_labels):
         for j in range(array_1.shape[1]):
             val_1 = array_1[i, j].astype(int)
             val_2 = array_2[i, j].astype(int)
-            mapping[val_1, val_2] += 1
+            try:
+                c1 = check_grid(array_1, i, j, ns=neighbor_size)
+                c2 = check_grid(array_2, i, j, ns=neighbor_size)
+                if c1 and c2:
+                    mapping[val_1, val_2] += 1
+            except:
+                pass
 
     return mapping
+
 
 def find_largest_indices(arr):
     # Flatten the array and get the indices that would sort it in descending order
@@ -138,6 +151,7 @@ def find_largest_indices(arr):
     # Combine the 2D indices and return them as a list of tuples
     return list(zip(si_2d[0], si_2d[1]))
 
+
 # Handles the propagated information from previous layer
 def modify_layer(array, mapping):
     # Find the majority mapping for each label in the first array
@@ -147,13 +161,13 @@ def modify_layer(array, mapping):
     alist = []
     while len(ilist) > 0:
         pval, cval = ilist.pop(0)
-        valid = not(any(pval == t[0] for t in alist) or any(cval == t[1] for t in alist))
+        valid = not (any(pval == t[0] for t in alist) or any(cval == t[1] for t in alist))
         if valid:
             alist.append((pval, cval))
 
     # For each assignment in final assignment list
     for a in alist:
-        m_array[array==a[1]] = a[0]
+        m_array[array == a[1]] = a[0]
 
     return m_array
 
@@ -169,7 +183,7 @@ def fine_tune_3d_masks(data_dict, main_axis='z'):
     print('Using mask layer {} as center'.format(center))
 
     total_iterations = (center - 0) + (data_shape[2] - 1 - center)
-    
+
     print('Adjusting remaining layers...')
 
     with tqdm(total=total_iterations, desc="Adjusting masks", unit="layer") as pbar:
@@ -186,4 +200,3 @@ def fine_tune_3d_masks(data_dict, main_axis='z'):
             pbar.update(1)
 
     return adj_data
-
