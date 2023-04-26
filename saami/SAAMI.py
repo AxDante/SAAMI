@@ -12,9 +12,9 @@ class SAAMI:
         self.vol_dataset = VolumeDataset(data_dir, roi=self.roi)
         self.main_axis = main_axis
 
-    def calculate_3d_mask(self, idx):
+    def calculate_3d_mask(self, idx, threshold=0.0):
         data = self.vol_dataset[idx]
-        mask_data = get_volume_SAM_data(data, self.mask_generator, main_axis=self.main_axis)
+        mask_data = get_volume_SAM_data(data, self.mask_generator, main_axis=self.main_axis, threshold=threshold)
         self.vol_dataset.update_data(mask_data, 'sam_seg_{}'.format(self.main_axis), idx)
         return mask_data
 

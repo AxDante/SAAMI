@@ -31,7 +31,17 @@ def get_sam_mask_generator(sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_mod
     return mask_generator
 
 
-def get_volume_SAM_data(data_dict, mask_generator, main_axis='z'):
+def apply_threshold_label(data, threshold=0.005):
+
+    # Calculate the occurrence of each lable in the input data (2D array)
+    ue, counts = np.unique(data, return_counts=True)
+    th_val = threshold * data.shape[0] * data.shape[1] 
+    mask = ue[counts < th_val]
+    data[np.isin(data, mask)] = 0
+
+    return data
+
+def get_volume_SAM_data(data_dict, mask_generator, main_axis='z', threshold=0.0):
     image = data_dict["image"]
     label = data_dict["label"]
     img_shape = data_dict["image"].shape
@@ -66,6 +76,10 @@ def get_volume_SAM_data(data_dict, mask_generator, main_axis='z'):
         masks_label = np.zeros(shape, dtype=int)
         for index, mask in enumerate(masks):
             masks_label[mask['segmentation']] = index + 1
+
+        masks_label = masks_label.astype(np.int16)
+        if threshold > 0:
+            masks_label = apply_threshold_label(masks_label, threshold)
 
         if axis == 'x':
             sam_data['sam_seg_x'][start_pos, top:bottom + 1, left:right + 1] = masks_label
@@ -104,21 +118,29 @@ def get_volume_SAM_data(data_dict, mask_generator, main_axis='z'):
     return sam_data['sam_seg_{}'.format(main_axis)]
 
 
-#
-# def check_grid(data, rx, ry, rz, bs):
-#     if all(data[rx, ry, rz] == value for value in
-#            [data[rx - bs, ry, rz], data[rx + bs, ry, rz], data[rx, ry - bs, rz], data[rx, ry + bs, rz]]):
-#         return True, data[rx, ry, rz]
-#     else:
-#         return False, -1
 
-def check_grid(arr, rx, ry, ns=2):
-    if all(arr[rx, ry] == value for value in
-           [arr[rx - ns, ry], arr[rx + ns, ry], arr[rx, ry - ns], arr[rx, ry + ns]]):
-        return True
+def check_grid3d(data, rx, ry, rz, bs):
+    if all(data[rx, ry, rz] == value for value in
+           [data[rx - bs, ry, rz], data[rx + bs, ry, rz], data[rx, ry - bs, rz], data[rx, ry + bs, rz]]):
+        return True, data[rx, ry, rz]
     else:
-        return False
+        return False, -1
 
+def check_grid(arr, rx, ry, ns=2, method='point'):
+    if method == 'point':
+        if all(arr[rx, ry] == value for value in
+            [arr[rx - ns, ry], arr[rx + ns, ry], arr[rx, ry - ns], arr[rx, ry + ns]]):
+            return True
+        else:
+            return False
+
+def check_grid(arr, rx, ry, ns=2, method='point'):
+    if method == 'point':
+        if all(arr[rx, ry] == value for value in
+            [arr[rx - ns, ry], arr[rx + ns, ry], arr[rx, ry - ns], arr[rx, ry + ns]]):
+            return True
+        else:
+            return False
 
 def calculate_mapping(array_1, array_2, num_labels, neighbor_size=0):
     if array_1.shape != array_2.shape:
@@ -135,6 +157,8 @@ def calculate_mapping(array_1, array_2, num_labels, neighbor_size=0):
                 c2 = check_grid(array_2, i, j, ns=neighbor_size)
                 if c1 and c2:
                     mapping[val_1, val_2] += 1
+                else:
+                    j = j + neighbor_size
             except:
                 pass
 
@@ -148,19 +172,33 @@ def find_largest_indices(arr):
     # Convert the flattened indices to 2D indices
     si_2d = np.unravel_index(si, arr.shape)
 
-    # Combine the 2D indices and return them as a list of tuples
-    return list(zip(si_2d[0], si_2d[1]))
+    # Initialize an empty list for the result
+    result = []
 
+    # Iterate through the sorted indices and check if the corresponding value is not 0
+    for i in range(len(si)):
+        if arr[si_2d[0][i], si_2d[1][i]] != 0:
+            # Add the non-zero value's indices as a tuple to the result list
+            result.append((si_2d[0][i], si_2d[1][i]))
+
+    return result
 
 # Handles the propagated information from previous layer
 def modify_layer(array, mapping):
     # Find the majority mapping for each label in the first array
-    m_array = np.full(array.shape, -1)
+    # m_array = np.full(array.shape, -1)
+    m_array = np.zeros(array.shape)
+
     ilist = find_largest_indices(mapping)
 
     alist = []
+    vlist = []
     while len(ilist) > 0:
         pval, cval = ilist.pop(0)
+        # if cval not in vlist:
+        #     alist.append((pval, cval))
+        #     vlist.append(cval)
+
         valid = not (any(pval == t[0] for t in alist) or any(cval == t[1] for t in alist))
         if valid:
             alist.append((pval, cval))
