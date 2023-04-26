@@ -2,9 +2,8 @@ from saami.SAAMI import SAAMI
 
 # roi = ((70, 150), (700, 600))
 
-SAAMIdata = SAAMI('data/amos22_example_processed', roi=((70, 150), (700, 600)))
-
-# SAAMIdata = SAAMI('data/MRI_example')
+SAAMIdata = SAAMI('data/MRI_example', roi=None)
+SAAMIdata = SAAMI('data/GoldAtlas_T1_MRI_mini', roi=None)
 
 # Calculates 3D mask for the first volume (idx = 0)
 mask = SAAMIdata.calculate_3d_mask(0, threshold= 0.003)

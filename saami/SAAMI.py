@@ -38,6 +38,10 @@ class SAAMI:
         orig_nifti = nib.load(orig_file_path)
         convert_to_nifti(data, save_path=save_path, affine=orig_nifti.affine)
 
+    def save_masks(self):
+        for i in range(len(self.vol_dataset)):
+            self.save_mask(i, save_path='outputs/saved_mask_{}.nii'.format(i))
+
     def visualize(self, idx, save_folder="outputs/example_images"):
         data = self.vol_dataset[idx]
         visualize_volume_SAM(data, save_path=save_folder, show_tkinter = True)

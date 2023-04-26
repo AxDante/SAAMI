@@ -16,17 +16,16 @@ def get_sam_mask_generator(sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_mod
 
     sam = sam_model_registry[sam_model_type](checkpoint=sam_checkpoint)
     sam.to(device=device)
-    mask_generator = SamAutomaticMaskGenerator(sam)
-    # mask_generator = SamAutomaticMaskGenerator(
-    #     model=sam,
-    #     points_per_side=32,
-    #     pred_iou_thresh=0.86,
-    #     stability_score_thresh=0.42,
-    #     stability_score_offset=0.22,
-    #     crop_n_layers=2,
-    #     crop_n_points_downscale_factor=2,
-    #     min_mask_region_area=00,  # Requires open-cv to run post-processing
-    # )
+    # mask_generator = SamAutomaticMaskGenerator(sam)
+    mask_generator = SamAutomaticMaskGenerator(
+        model=sam,
+        points_per_side=32,
+        pred_iou_thresh=0.86,
+        stability_score_thresh=0.92,
+        crop_n_layers=1,
+        crop_n_points_downscale_factor=2,
+        min_mask_region_area=100,  # Requires open-cv to run post-processing
+    )
 
     return mask_generator
 
