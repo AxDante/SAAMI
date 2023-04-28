@@ -35,7 +35,7 @@ def random_index_with_label(data, label):
 
 def convert_to_nifti(data_dict, save_path='outputs/test.nii', main_axis='z', affine=np.eye(4)):
 
-    data = data_dict['sam_seg_{}'.format(main_axis)]
+    data = data_dict['sam_seg'][main_axis]
 
     # Convert data to nifti image
     data_array = np.array(data, dtype=np.int16)  # Convert the data type to int16

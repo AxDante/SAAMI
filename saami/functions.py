@@ -1,18 +1,33 @@
 import os.path
 import urllib.request
 import numpy as np
+import cv2
 from tqdm import tqdm
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry, SamPredictor
 
 
-def get_sam_mask_generator(sam_checkpoint="models/sam_vit_h_4b8939.pth", sam_model_type="vit_h", device="cuda"):
-    vit_h_url = 'https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth'
+def get_sam_mask_generator(sam_checkpoint=None, sam_model_type="vit_b", device="cuda"):
+
+    if sam_checkpoint == None:
+        if sam_model_type == "vit_h":
+            model_url = 'https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth'
+            sam_checkpoint = 'models/sam_vit_h_4b8939.pth'
+
+        elif sam_model_type == "vit_b":
+            model_url = 'https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth'
+            sam_checkpoint = 'models/sam_vit_b_01ec64.pth'
+
+        elif sam_model_type == "vit_l":
+            model_url = 'https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth'
+            sam_checkpoint = 'models/sam_vit_l_0b3195.pth'
 
     if not os.path.exists(sam_checkpoint):
         print("SAM checkpoint does not exist, downloading the checkpoint under /models folder ...")
         if not os.path.exists('models'):
             os.makedirs('models')
-        urllib.request.urlretrieve(vit_h_url, 'models/sam_vit_h_4b8939.pth')
+        urllib.request.urlretrieve(model_url, sam_checkpoint)
+
+    print('Loading SAM model from checkpoint: {}'.format(sam_checkpoint))
 
     sam = sam_model_registry[sam_model_type](checkpoint=sam_checkpoint)
     sam.to(device=device)
@@ -44,36 +59,50 @@ def apply_threshold_label(data, threshold=0.005):
 
 def process_slice(sam_data, input_image_slice, mask_generator, axis, start_pos=0, threshold=0.0):
 
-    mask = np.abs(input_image_slice) > 10
-    rows, cols = np.where(mask)
-
-    if not (rows.size > 0 and cols.size > 0):
-        print('No available pixels, skipping...')
-        return
-
-    top, bottom = np.min(rows), np.max(rows)
-    left, right = np.min(cols), np.max(cols)
-
-    image_slice = input_image_slice[top:bottom + 1, left:right + 1]
-
     # Repeat dimension if input slice only has one channel (grayscale image)
-    if input_image_slice.shape[2] == 1:
+    if len(input_image_slice.shape) == 2:
+
+        mask = np.abs(input_image_slice) > 10
+        rows, cols = np.where(mask)
+
+        if not (rows.size > 0 and cols.size > 0):
+            print('No available pixels, skipping...')
+            return
+
+        top, bottom = np.min(rows), np.max(rows)
+        left, right = np.min(cols), np.max(cols)
+
+        image_slice = input_image_slice[top:bottom + 1, left:right + 1]
+
         image_slice = image_slice[:, :, np.newaxis]
         image_3c = np.repeat(image_slice, 3, axis=2)
         image_3c = (image_3c / np.amax(image_3c) * 255).astype(np.uint8)
-    else:
+    elif len(input_image_slice.shape) == 3:
         # Assumeing the input image is RGB (and with proper intensity range)
-        image_3c = image_slice
+        image_3c = input_image_slice
+
+    # If image_3c width or height is larger than 1600, perform rescaling
+    max_dim = 1600
+    original_height, original_width = image_3c.shape[:2]
+    if original_height > max_dim or original_width > max_dim:
+        new_height, new_width = (
+            int(original_height * max_dim / max(original_height, original_width)),
+            int(original_width * max_dim / max(original_height, original_width)),
+        )
+        image_3c = cv2.resize(image_3c, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
     # Run SAM model
     masks = (mask_generator.generate(image_3c))
-    shape = masks[0]['segmentation'].shape
-    masks_label = np.zeros(shape, dtype=int)
+    masks_label = np.zeros(masks[0]['segmentation'].shape, dtype=int)
 
     # Pefrom label post-processing
     for index, mask in enumerate(masks):
         masks_label[mask['segmentation']] = index + 1
 
+    masks_label = masks_label.astype(np.int8)
+    # If rescaling was performed, rescale the mask back to the original size
+    if original_height > max_dim or original_width > max_dim:
+        masks_label = cv2.resize(masks_label, (original_width, original_height), interpolation=cv2.INTER_NEAREST)
     masks_label = masks_label.astype(np.int16)
 
     # Apply threshold to remove small regions
@@ -102,12 +131,12 @@ def get_SAM_data(data_dict, mask_generator, main_axis = '2D', threshold=0.0):
 
     sam_data = {}
     sam_data["image"] = data_dict["image"]
-    sam_data["gt_label"] = data_dict["label"]
+    sam_data["label"] = data_dict["label"]
     
-    sam_data["sam_seg"] = np.zeros(img_shape)
-    
-    if main_axis == '2D': # 2D case
+    sam_data["sam_seg"] = {}
 
+    if main_axis == '2D': # 2D case
+        print('Processing slice using SAM model on 2D image.')
         sam_data = process_slice(sam_data, image, mask_generator, '2D', threshold=0.0)
 
     else: # 3D case
@@ -115,112 +144,33 @@ def get_SAM_data(data_dict, mask_generator, main_axis = '2D', threshold=0.0):
         axes = ['x', 'y', 'z'] if main_axis == 'all' else [main_axis]
 
         if 'x' in axes:
-            # For 'x' axis
+            sam_data["sam_seg"]['x'] = np.zeros(sam_data["image"].shape)
             total_slices = img_shape[0]
             print('Processing slice using SAM model along x axis.')
             with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
                 for i in range(total_slices):
-                    process_slice(image[:, :, i], mask_generator, 'x', i)
+                    sam_data = process_slice(sam_data, image[:, :, i], mask_generator, 'x', i)
                     pbar.update(1)
 
         if 'y' in axes:
+            sam_data["sam_seg"]['y'] = np.zeros(sam_data["image"].shape)
             total_slices = img_shape[1]
             print('Processing slice using SAM model along y axis.')
             with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
                 for i in range(total_slices):
-                    process_slice(image[:, :, i], mask_generator, 'y', i)
+                    sam_data = process_slice(sam_data, image[:, :, i], mask_generator, 'y', i)
                     pbar.update(1)
 
         if 'z' in axes:
+            sam_data["sam_seg"]['z'] = np.zeros(sam_data["image"].shape)
             total_slices = img_shape[2]
             print('Processing slice using SAM model along z axis.')
             with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
                 for i in range(total_slices):
-                    process_slice(image[:, :, i], mask_generator, 'z', i)
+                    sam_data = process_slice(sam_data, image[:, :, i], mask_generator, 'z', i)
                     pbar.update(1)
 
-    return sam_data["sam_seg"][main_axis]
-
-
-
-def get_volume_SAM_data(data_dict, mask_generator, main_axis='z', threshold=0.0):
-    
-    image = data_dict["image"]
-    label = data_dict["label"]
-    img_shape = data_dict["image"].shape
-
-    sam_data = {}
-    sam_data["image"] = data_dict["image"]
-    sam_data["gt_label"] = data_dict["label"]
-    
-    sam_data["sam_seg"] = {}
-    sam_data["sam_seg"]["x"] = np.zeros(img_shape)
-    sam_data["sam_seg"]["y"] = np.zeros(img_shape)
-    sam_data["sam_seg"]["z"] = np.zeros(img_shape)
-
-    def process_slice(input_image_slice, mask_generator, axis, start_pos):
-
-        mask = np.abs(input_image_slice) > 10
-        rows, cols = np.where(mask)
-
-        if not (rows.size > 0 and cols.size > 0):
-            print('No available pixels, skipping...')
-            return
-
-        top, bottom = np.min(rows), np.max(rows)
-        left, right = np.min(cols), np.max(cols)
-
-        image_slice = input_image_slice[top:bottom + 1, left:right + 1]
-        image_slice = image_slice[:, :, np.newaxis]
-
-        image_3d = np.repeat(image_slice, 3, axis=2)
-        image_3d = (image_3d / np.amax(image_3d) * 255).astype(np.uint8)
-
-        masks = (mask_generator.generate(image_3d))
-        shape = masks[0]['segmentation'].shape
-        masks_label = np.zeros(shape, dtype=int)
-        for index, mask in enumerate(masks):
-            masks_label[mask['segmentation']] = index + 1
-
-        masks_label = masks_label.astype(np.int16)
-        if threshold > 0:
-            masks_label = apply_threshold_label(masks_label, threshold)
-
-        if axis == 'x':
-            sam_data["sam_seg"]["x"][start_pos, top:bottom + 1, left:right + 1] = masks_label
-        elif axis == 'y':
-            sam_data["sam_seg"]["y"][top:bottom + 1, start_pos, left:right + 1] = masks_label
-        elif axis == 'z':
-            sam_data["sam_seg"]["z"][top:bottom + 1, left:right + 1, start_pos] = masks_label
-
-    axes = ['x', 'y', 'z'] if main_axis == 'all' else [main_axis]
-
-    if 'x' in axes:
-        # For 'x' axis
-        total_slices = img_shape[0]
-        print('Processing slice using SAM model along x axis.')
-        with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
-            for i in range(total_slices):
-                process_slice(image[:, :, i], mask_generator, 'x', i)
-                pbar.update(1)
-
-    if 'y' in axes:
-        total_slices = img_shape[1]
-        print('Processing slice using SAM model along y axis.')
-        with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
-            for i in range(total_slices):
-                process_slice(image[:, :, i], mask_generator, 'y', i)
-                pbar.update(1)
-
-    if 'z' in axes:
-        total_slices = img_shape[2]
-        print('Processing slice using SAM model along z axis.')
-        with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
-            for i in range(total_slices):
-                process_slice(image[:, :, i], mask_generator, 'z', i)
-                pbar.update(1)
-
-    return sam_data["sam_seg"][main_axis]
+    return sam_data
 
 
 def check_grid3d(data, rx, ry, rz, bs):
@@ -313,37 +263,26 @@ def modify_layer(array, mapping):
 
     return m_array
 
+
 def fine_tune_3d_masks(data_dict, main_axis='z', neighbor_size=0):
-    data = data_dict['sam_seg_{}'.format(main_axis)]
+
+    data = data_dict['sam_seg'][main_axis]
     data_shape = data.shape
 
     adj_data = data.copy().astype(int)
     max_labels = np.amax(adj_data).astype(int)
 
-    def adjust_layers(data, adj_data, start, end, max_labels, neighbor_size):
-        if end - start <= 1:
-            return
+    center = data_shape[2] // 2
+    print('Using mask layer {} as center'.format(center))
 
-        center = (start + end) // 2
+    # First loop: from center to 0
+    for rz in tqdm(range(center, 0, -1), desc="Fine-tuning layer"):
+        mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels)
+        adj_data[:, :, rz - 1] = modify_layer(adj_data[:, :, rz - 1], mapping)
 
-        # Adjust layers from center to start
-        for rz in range(center, start, -1):
-            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels, neighbor_size=neighbor_size)
-            adj_data[:, :, rz - 1] = modify_layer(adj_data[:, :, rz - 1], mapping)
-
-        # Adjust layers from center to end
-        for rz in range(center, end - 1):
-            mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels, neighbor_size=neighbor_size)
-            adj_data[:, :, rz + 1] = modify_layer(adj_data[:, :, rz + 1], mapping)
-
-        # Recursively adjust the layers in the left and right groups
-        adjust_layers(data, adj_data, start, center, max_labels, neighbor_size)
-        adjust_layers(data, adj_data, center + 1, end, max_labels, neighbor_size)
-
-    total_iterations = 2 * (data_shape[2] - 1)
-
-    print('Adjusting remaining layers...')
-    with tqdm(total=total_iterations, desc="Adjusting masks", unit="layer") as pbar:
-        adjust_layers(data, adj_data, 0, data_shape[2] - 1, max_labels, neighbor_size)
+    # Second loop: from center to data_shape[2]
+    for rz in tqdm(range(center, data_shape[2] - 1), desc="Fine-tuning layer"):
+        mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels)
+        adj_data[:, :, rz + 1] = modify_layer(adj_data[:, :, rz + 1], mapping)
 
     return adj_data

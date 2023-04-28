@@ -128,6 +128,8 @@ class ImageDataset(Dataset):
             data = {"image": image, "label": label}
             self.data.append(data)
 
+        self.image_file_list = image_file_list
+
     def __len__(self):
         """
         Return the number of data items in the dataset

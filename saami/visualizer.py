@@ -8,19 +8,19 @@ from matplotlib.colors import Normalize
 
 
 def visualize_volume_SAM(data_dict, show_widget=False, show_tkinter=False, save_path="", axis='z'):
+
+    print(data_dict)
     images = data_dict["image"]
     labels = data_dict["label"]
 
+    masks = data_dict['sam_seg'][axis]
     if axis == 'x':
-        masks = data_dict['sam_seg_x']
         max_slice = images.shape[0] - 1
 
     elif axis == 'y':
-        masks = data_dict['sam_seg_y']
         max_slice = images.shape[1] - 1
 
     elif axis == 'z':
-        masks = data_dict['sam_seg_z']
         max_slice = images.shape[2] - 1
 
     max_mask_value = np.amax(masks)
@@ -119,6 +119,14 @@ def visualize_volume_SAM(data_dict, show_widget=False, show_tkinter=False, save_
         save_button = tk.Button(control_frame, text="Save Image", command=save_image)
 
         save_button.pack(side=tk.TOP, pady=10)
+        
+        # Callback function to handle window close event
+        def on_close():
+            window.destroy()
+            plt.close(fig)
+
+        # Bind the callback function to the window close event
+        window.protocol("WM_DELETE_WINDOW", on_close)
 
         get_plot(fig, 0)
         window.mainloop()

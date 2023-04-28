@@ -6,7 +6,7 @@ from saami.SAAMI import SAAMI
 SAAMIdata = SAAMI('data/MRI_example', roi=None)
 
 # Calculates 3D mask for the first volume (idx = 0)
-mask = SAAMIdata.calculate_3d_mask(0, threshold= 0.003)
+mask = SAAMIdata.calculate_mask(0, threshold= 0.003)
 
 SAAMIdata.save_mask(0, save_path='outputs/saved_sam_mask.nii')
 
