@@ -35,10 +35,10 @@ def random_index_with_label(data, label):
 
 def convert_to_nifti(data_dict, save_path='outputs/test.nii', main_axis='z', affine=np.eye(4)):
 
-    data = data_dict['sam_seg_{}'.format(main_axis)]
+    data = data_dict['sam_seg'][main_axis]
 
     # Convert data to nifti image
-    data_array = np.array(data)
+    data_array = np.array(data, dtype=np.int16)  # Convert the data type to int16
     nifti_img = nib.Nifti1Image(data_array, affine)
 
     # Check if the saving folder exists
@@ -51,7 +51,7 @@ def convert_to_nifti(data_dict, save_path='outputs/test.nii', main_axis='z', aff
     print('Nifti data saved to {}'.format(save_path))
 
 
-def save_volume_SAM_data(sam_data, save_path):
+def save_SAM_data(sam_data, save_path):
     # Ensure that the directory for the save path exists
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
@@ -61,7 +61,7 @@ def save_volume_SAM_data(sam_data, save_path):
 
     print('SAM data saved to {}'.format(save_path))
 
-def load_volume_SAM_data(load_path):
+def load_SAM_data(load_path):
     # Check if the file exists
     if not os.path.exists(load_path):
         raise FileNotFoundError('The specified file {} does not exist.'.format(load_path))
