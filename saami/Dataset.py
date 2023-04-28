@@ -3,6 +3,7 @@ import os
 import nibabel as nib
 import numpy as np
 import re
+import cv2
 
 class VolumeDataset(Dataset):
     
@@ -21,7 +22,7 @@ class VolumeDataset(Dataset):
             image_folder = os.path.join(input_dir, folder_name, "Images")
             label_folder = os.path.join(input_dir, folder_name, "Labels")
 
-            image_file = os.listdir(image_folder)[0]
+            image_file = os.listdir(image_folder)[0]  # Currently we assume only one image file per folder, which would be the main volume for the patient
             image_path = os.path.join(image_folder, image_file)
             image_file_list.append(image_path)
             image_data = nib.load(image_path).get_fdata()
@@ -72,69 +73,77 @@ class VolumeDataset(Dataset):
         """
         return self.data[idx]
 
-    def update_data(self, data, label, idx):
+    def update_label(self, idx, label, label_data):
         """
         Update data in the dataset
         """
-        self.data[idx][label] = data
+        self.data[idx][label] = label_data
+
+    def update_data(self, idx, data):
+        """
+        Update data in the dataset
+        """
+        self.data[idx] = data
+
 
 
 class ImageDataset(Dataset):
     """
     ImageDataset
     """
-
     def __init__(self,
-                 input_dir):
+             input_dir, roi = None):
         self.input_dir = input_dir
-        self.data = {}
-        self.folder_names = os.listdir(input_dir)  # Get all folders under input_dir
+        self.data = []
 
-        for folder_name in self.folder_names:  # for loop iterate over all folder_name under input_dir
-            image_folder = os.path.join(input_dir, folder_name, "Images")
-            label_folder = os.path.join(input_dir, folder_name, "Labels")
+        image_folder = os.path.join(input_dir, "Images")
+        label_folder = os.path.join(input_dir, "Labels")
 
-            image_file = os.listdir(image_folder)[0]
-            image_path = os.path.join(image_folder, image_file)
-            image_data = nib.load(image_path).get_fdata()
+        image_file_list = os.listdir(image_folder)
+        label_file_list = os.listdir(label_folder)
 
-            label_data = np.zeros(image_data.shape)
+        # Filter out non-image files, may support more extensions in the future
+        image_file_list = [img for img in image_file_list if img.lower().endswith(('.jpg', '.png', '.jpeg'))]
 
-            label_files = os.listdir(label_folder)
+        label_file_list = [lbl for lbl in label_file_list if lbl.lower().endswith(('.jpg', '.png', '.jpeg'))]
 
-            combined_label_file =  [f for f in label_files if f.endswith("combined_seg.nii.gz")][0] 
+        image_file_list.sort()
+        label_file_list.sort()
 
-            print(combined_label_file)
-            print(image_folder)
-            print(label_folder)
+        assert len(image_file_list) == len(label_file_list), "Number of images and labels do not match"
 
-            if combined_label_file:
-                print('combined label file exists')
-                label_data = nib.load(os.path.join(label_folder, combined_label_file)).get_fdata()
-            else:
-                for label_file in os.listdir(label_folder):
-                    if label_file.endswith(".nii.gz"):
-                        label_path = os.path.join(label_folder, label_file)
-                        label_id_str = re.findall(r'\d+', label_file)[0]
-                        label_id = int(label_id_str)
-                        label_image_data = nib.load(label_path).get_fdata()
-                        label_data += label_id * (label_image_data > 0)
+        # Iterate through each pair and load image/label for each pair
+        for img_file, lbl_file in zip(image_file_list, label_file_list):
+            img_path = os.path.join(image_folder, img_file)
+            lbl_path = os.path.join(label_folder, lbl_file)
 
-            image = image_data[:, :, :]
-            label = label_data[:, :, :]
+            image = cv2.imread(img_path)
+            label = cv2.imread(lbl_path)
 
-            self.data[folder_name] = {"image": image, "label": label}
+            # ROI adjustment
+            if roi:
+                image = image[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]]
+                label = label[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]]
+
+            data = {"image": image, "label": label}
+            self.data.append(data)
 
     def __len__(self):
         """
-        Return number of folders under input_dir
+        Return the number of data items in the dataset
         """
-        return len(self.folder_names)
+        return len(self.data)
 
     def __getitem__(self,
                     idx):
         """
-        Get data_dict corresponding to idx
+        Get data corresponding to idx
         """
-        folder_name = self.folder_names[idx]
-        return self.data[folder_name]
+        return self.data[idx]
+    
+    
+    def update_data(self, idx, data):
+        """
+        Update data in the dataset
+        """
+        self.data[idx] = data

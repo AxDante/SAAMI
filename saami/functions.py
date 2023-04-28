@@ -40,7 +40,62 @@ def apply_threshold_label(data, threshold=0.005):
 
     return data
 
-def get_volume_SAM_data(data_dict, mask_generator, main_axis='z', threshold=0.0):
+
+
+def process_slice(sam_data, input_image_slice, mask_generator, axis, start_pos=0, threshold=0.0):
+
+    mask = np.abs(input_image_slice) > 10
+    rows, cols = np.where(mask)
+
+    if not (rows.size > 0 and cols.size > 0):
+        print('No available pixels, skipping...')
+        return
+
+    top, bottom = np.min(rows), np.max(rows)
+    left, right = np.min(cols), np.max(cols)
+
+    image_slice = input_image_slice[top:bottom + 1, left:right + 1]
+
+    # Repeat dimension if input slice only has one channel (grayscale image)
+    if input_image_slice.shape[2] == 1:
+        image_slice = image_slice[:, :, np.newaxis]
+        image_3c = np.repeat(image_slice, 3, axis=2)
+        image_3c = (image_3c / np.amax(image_3c) * 255).astype(np.uint8)
+    else:
+        # Assumeing the input image is RGB (and with proper intensity range)
+        image_3c = image_slice
+
+    # Run SAM model
+    masks = (mask_generator.generate(image_3c))
+    shape = masks[0]['segmentation'].shape
+    masks_label = np.zeros(shape, dtype=int)
+
+    # Pefrom label post-processing
+    for index, mask in enumerate(masks):
+        masks_label[mask['segmentation']] = index + 1
+
+    masks_label = masks_label.astype(np.int16)
+
+    # Apply threshold to remove small regions
+    if threshold > 0:
+        masks_label = apply_threshold_label(masks_label, threshold)
+
+    # Save the segmentation result to the SAM data
+    if axis == 'x':
+        sam_data["sam_seg"]["x"][start_pos, top:bottom + 1, left:right + 1] = masks_label
+    elif axis == 'y':
+        sam_data["sam_seg"]["y"][top:bottom + 1, start_pos, left:right + 1] = masks_label
+    elif axis == 'z':
+        sam_data["sam_seg"]["z"][top:bottom + 1, left:right + 1, start_pos] = masks_label
+    elif axis == '2D':
+        sam_data["sam_seg"]['2D'] = masks_label
+    
+    return sam_data
+
+
+
+def get_SAM_data(data_dict, mask_generator, main_axis = '2D', threshold=0.0):
+    
     image = data_dict["image"]
     label = data_dict["label"]
     img_shape = data_dict["image"].shape
@@ -48,9 +103,60 @@ def get_volume_SAM_data(data_dict, mask_generator, main_axis='z', threshold=0.0)
     sam_data = {}
     sam_data["image"] = data_dict["image"]
     sam_data["gt_label"] = data_dict["label"]
-    sam_data["sam_seg_x"] = np.zeros(img_shape)
-    sam_data["sam_seg_y"] = np.zeros(img_shape)
-    sam_data["sam_seg_z"] = np.zeros(img_shape)
+    
+    sam_data["sam_seg"] = np.zeros(img_shape)
+    
+    if main_axis == '2D': # 2D case
+
+        sam_data = process_slice(sam_data, image, mask_generator, '2D', threshold=0.0)
+
+    else: # 3D case
+
+        axes = ['x', 'y', 'z'] if main_axis == 'all' else [main_axis]
+
+        if 'x' in axes:
+            # For 'x' axis
+            total_slices = img_shape[0]
+            print('Processing slice using SAM model along x axis.')
+            with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
+                for i in range(total_slices):
+                    process_slice(image[:, :, i], mask_generator, 'x', i)
+                    pbar.update(1)
+
+        if 'y' in axes:
+            total_slices = img_shape[1]
+            print('Processing slice using SAM model along y axis.')
+            with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
+                for i in range(total_slices):
+                    process_slice(image[:, :, i], mask_generator, 'y', i)
+                    pbar.update(1)
+
+        if 'z' in axes:
+            total_slices = img_shape[2]
+            print('Processing slice using SAM model along z axis.')
+            with tqdm(total=total_slices, desc="Processing slices", unit="slice") as pbar:
+                for i in range(total_slices):
+                    process_slice(image[:, :, i], mask_generator, 'z', i)
+                    pbar.update(1)
+
+    return sam_data["sam_seg"][main_axis]
+
+
+
+def get_volume_SAM_data(data_dict, mask_generator, main_axis='z', threshold=0.0):
+    
+    image = data_dict["image"]
+    label = data_dict["label"]
+    img_shape = data_dict["image"].shape
+
+    sam_data = {}
+    sam_data["image"] = data_dict["image"]
+    sam_data["gt_label"] = data_dict["label"]
+    
+    sam_data["sam_seg"] = {}
+    sam_data["sam_seg"]["x"] = np.zeros(img_shape)
+    sam_data["sam_seg"]["y"] = np.zeros(img_shape)
+    sam_data["sam_seg"]["z"] = np.zeros(img_shape)
 
     def process_slice(input_image_slice, mask_generator, axis, start_pos):
 
@@ -81,11 +187,11 @@ def get_volume_SAM_data(data_dict, mask_generator, main_axis='z', threshold=0.0)
             masks_label = apply_threshold_label(masks_label, threshold)
 
         if axis == 'x':
-            sam_data['sam_seg_x'][start_pos, top:bottom + 1, left:right + 1] = masks_label
+            sam_data["sam_seg"]["x"][start_pos, top:bottom + 1, left:right + 1] = masks_label
         elif axis == 'y':
-            sam_data['sam_seg_y'][top:bottom + 1, start_pos, left:right + 1] = masks_label
+            sam_data["sam_seg"]["y"][top:bottom + 1, start_pos, left:right + 1] = masks_label
         elif axis == 'z':
-            sam_data['sam_seg_z'][top:bottom + 1, left:right + 1, start_pos] = masks_label
+            sam_data["sam_seg"]["z"][top:bottom + 1, left:right + 1, start_pos] = masks_label
 
     axes = ['x', 'y', 'z'] if main_axis == 'all' else [main_axis]
 
@@ -114,8 +220,7 @@ def get_volume_SAM_data(data_dict, mask_generator, main_axis='z', threshold=0.0)
                 process_slice(image[:, :, i], mask_generator, 'z', i)
                 pbar.update(1)
 
-    return sam_data['sam_seg_{}'.format(main_axis)]
-
+    return sam_data["sam_seg"][main_axis]
 
 
 def check_grid3d(data, rx, ry, rz, bs):
@@ -208,7 +313,6 @@ def modify_layer(array, mapping):
 
     return m_array
 
-
 def fine_tune_3d_masks(data_dict, main_axis='z', neighbor_size=0):
     data = data_dict['sam_seg_{}'.format(main_axis)]
     data_shape = data.shape
@@ -216,24 +320,30 @@ def fine_tune_3d_masks(data_dict, main_axis='z', neighbor_size=0):
     adj_data = data.copy().astype(int)
     max_labels = np.amax(adj_data).astype(int)
 
-    center = data_shape[2] // 2
-    print('Using mask layer {} as center'.format(center))
+    def adjust_layers(data, adj_data, start, end, max_labels, neighbor_size):
+        if end - start <= 1:
+            return
 
-    total_iterations = (center - 0) + (data_shape[2] - 1 - center)
+        center = (start + end) // 2
 
-    print('Adjusting remaining layers...')
-
-    with tqdm(total=total_iterations, desc="Adjusting masks", unit="layer") as pbar:
-        # First loop: from center to 0
-        for rz in range(center, 0, -1):
+        # Adjust layers from center to start
+        for rz in range(center, start, -1):
             mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz - 1], max_labels, neighbor_size=neighbor_size)
             adj_data[:, :, rz - 1] = modify_layer(adj_data[:, :, rz - 1], mapping)
-            pbar.update(1)
 
-        # Second loop: from center to data_shape[2]
-        for rz in range(center, data_shape[2] - 1):
+        # Adjust layers from center to end
+        for rz in range(center, end - 1):
             mapping = calculate_mapping(adj_data[:, :, rz], data[:, :, rz + 1], max_labels, neighbor_size=neighbor_size)
             adj_data[:, :, rz + 1] = modify_layer(adj_data[:, :, rz + 1], mapping)
-            pbar.update(1)
+
+        # Recursively adjust the layers in the left and right groups
+        adjust_layers(data, adj_data, start, center, max_labels, neighbor_size)
+        adjust_layers(data, adj_data, center + 1, end, max_labels, neighbor_size)
+
+    total_iterations = 2 * (data_shape[2] - 1)
+
+    print('Adjusting remaining layers...')
+    with tqdm(total=total_iterations, desc="Adjusting masks", unit="layer") as pbar:
+        adjust_layers(data, adj_data, 0, data_shape[2] - 1, max_labels, neighbor_size)
 
     return adj_data
