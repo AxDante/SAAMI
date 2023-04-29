@@ -3,7 +3,7 @@ import os
 import nibabel as nib
 from typing import NamedTuple
 from saami.Dataset import VolumeDataset, ImageDataset
-from saami.utils import save_SAM_data, convert_to_nifti
+from saami.utils import save_SAM_data, convert_to_nifti, save_data_to_npz_file
 from saami.functions import get_SAM_data, fine_tune_3d_masks, get_sam_mask_generator
 from saami.visualizer import visualize_volume_SAM
 
@@ -53,9 +53,11 @@ class SAAMI:
         self.dataset.update_data(idx, sam_data)
         return mask_data
 
-    def save_data(self, idx, save_path='outputs/saved_data.pkl'):
+    def save_numpy_data(self, idx, save_path=''):
         data = self.dataset[idx]
-        save_SAM_data(data, save_path)
+        save_path = save_path if save_path else 'outputs/saved_data_{}.npz'.format(idx)
+        keys = ['image', 'label', 'sam_seg']
+        save_data_to_npz_file(data, keys, save_path)
 
     def save_all_data(self, save_path=None):
         for i in range(len(self.dataset)):

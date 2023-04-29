@@ -7,4 +7,5 @@ print('dataset loaded')
 mask = Data2D.calculate_mask(0, threshold= 0.003)
 
 Data2D.save_mask(0, save_path='outputs/saved_2D_sam_mask.png')
+Data2D.save_numpy_data(0, save_path='outputs/saved_2D_data.npz')
 

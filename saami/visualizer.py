@@ -9,7 +9,6 @@ from matplotlib.colors import Normalize
 
 def visualize_volume_SAM(data_dict, show_widget=False, show_tkinter=False, save_path="", axis='z'):
 
-    print(data_dict)
     images = data_dict["image"]
     labels = data_dict["label"]
 
@@ -119,7 +118,7 @@ def visualize_volume_SAM(data_dict, show_widget=False, show_tkinter=False, save_
         save_button = tk.Button(control_frame, text="Save Image", command=save_image)
 
         save_button.pack(side=tk.TOP, pady=10)
-        
+
         # Callback function to handle window close event
         def on_close():
             window.destroy()
