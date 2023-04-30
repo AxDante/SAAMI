@@ -97,33 +97,40 @@ class ImageDataset(Dataset):
         self.data = []
 
         image_folder = os.path.join(input_dir, "Images")
-        label_folder = os.path.join(input_dir, "Labels")
-
+        assert os.path.exists(image_folder), "Image folder does not exist"
         image_file_list = os.listdir(image_folder)
-        label_file_list = os.listdir(label_folder)
-
-        # Filter out non-image files, may support more extensions in the future
         image_file_list = [img for img in image_file_list if img.lower().endswith(('.jpg', '.png', '.jpeg'))]
-
-        label_file_list = [lbl for lbl in label_file_list if lbl.lower().endswith(('.jpg', '.png', '.jpeg'))]
-
         image_file_list.sort()
-        label_file_list.sort()
 
-        assert len(image_file_list) == len(label_file_list), "Number of images and labels do not match"
+
+        label_folder = os.path.join(input_dir, "Labels")
+        gt_label = True
+        if not os.path.exists(label_folder):
+            print("Processing SAAMI without labels....")
+            gt_label = False
+            label_file_list = [''] * len(image_file_list)
+        else:
+            label_file_list = os.listdir(label_folder)
+            label_file_list = [lbl for lbl in label_file_list if lbl.lower().endswith(('.jpg', '.png', '.jpeg'))]
+            label_file_list.sort()
+            assert len(image_file_list) == len(label_file_list), "Number of images and labels do not match"
 
         # Iterate through each pair and load image/label for each pair
         for img_file, lbl_file in zip(image_file_list, label_file_list):
+
             img_path = os.path.join(image_folder, img_file)
             lbl_path = os.path.join(label_folder, lbl_file)
 
             image = cv2.imread(img_path)
-            label = cv2.imread(lbl_path)
+            label = None
+            if gt_label: 
+                label = cv2.imread(lbl_path)
 
             # ROI adjustment
             if roi:
                 image = image[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]]
-                label = label[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]]
+                if gt_label:
+                    label = label[roi[0][0]:roi[1][0], roi[0][1]:roi[1][1]]
 
             data = {"image": image, "label": label}
             self.data.append(data)

@@ -4,3 +4,4 @@ outputs/
 tests/
 *.pyc
 data/
+test_*

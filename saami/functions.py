@@ -57,7 +57,7 @@ def apply_threshold_label(data, threshold=0.005):
 
 
 
-def process_slice(sam_data, input_image_slice, mask_generator, axis, start_pos=0, threshold=0.0):
+def process_slice(sam_data, input_image_slice, mask_generator, axis, start_pos=0, threshold=0.0, img_normalize=False):
 
     # Repeat dimension if input slice only has one channel (grayscale image)
     if len(input_image_slice.shape) == 2:
@@ -117,13 +117,15 @@ def process_slice(sam_data, input_image_slice, mask_generator, axis, start_pos=0
     elif axis == 'z':
         sam_data["sam_seg"]["z"][top:bottom + 1, left:right + 1, start_pos] = masks_label
     elif axis == '2D':
+        if img_normalize:
+            masks_label = (masks_label - masks_label.min()) / (masks_label.max() - masks_label.min()) * 255
         sam_data["sam_seg"]['2D'] = masks_label
-    
+
     return sam_data
 
 
 
-def get_SAM_data(data_dict, mask_generator, main_axis = '2D', threshold=0.0):
+def get_SAM_data(data_dict, mask_generator, main_axis = '2D', threshold=0.0, img_normalize=False):
     
     image = data_dict["image"]
     label = data_dict["label"]
@@ -136,8 +138,7 @@ def get_SAM_data(data_dict, mask_generator, main_axis = '2D', threshold=0.0):
     sam_data["sam_seg"] = {}
 
     if main_axis == '2D': # 2D case
-        print('Processing slice using SAM model on 2D image.')
-        sam_data = process_slice(sam_data, image, mask_generator, '2D', threshold=0.0)
+        sam_data = process_slice(sam_data, image, mask_generator, '2D', threshold=threshold, img_normalize=img_normalize)
 
     else: # 3D case
 

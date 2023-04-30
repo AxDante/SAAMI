@@ -15,12 +15,12 @@ def get_npz_files(folder_path):
 def update_visualization(npz_file, img_axes):
     data = np.load(npz_file)
 
-    image = np_array_to_image(data['image'])
+    image_bgr = np_array_to_image(data['image'])
+    image = image_bgr[..., ::-1]
     label = np_array_to_image(data['label'])
     sam_seg_2D_data = data['sam_seg_2D']
     sam_seg_2D_data = (sam_seg_2D_data - sam_seg_2D_data.min()) / (sam_seg_2D_data.max() - sam_seg_2D_data.min()) * 255
     sam_seg_2D = np_array_to_image(np.stack((sam_seg_2D_data,) * 3, axis=-1))
-    
 
     img_axes[0].set_data(image)
     img_axes[1].set_data(label)

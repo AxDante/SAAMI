@@ -1,5 +1,6 @@
 import cv2
 import os
+from tqdm import tqdm
 import nibabel as nib
 from typing import NamedTuple
 from saami.Dataset import VolumeDataset, ImageDataset
@@ -26,20 +27,36 @@ class SAAMI:
         # Create an instance of the specified dataset class
         self.dataset = dataset_class_map[dataset_type].dataset_class(data_dir, roi=self.roi)
 
-    def calculate_3d_mask(self, idx, threshold=0.0):
-
+    def calculate_3d_mask(self, idx, threshold=0.0, img_normalize=False):
         assert self.dataset_type == 'Volume', "calculate_3d_mask is only available for VolumeDataset"
         data = self.dataset[idx]
-        mask_data = get_SAM_data(data, self.mask_generator, main_axis=self.main_axis, threshold=threshold)
+        mask_data = get_SAM_data(data, self.mask_generator, main_axis=self.main_axis, threshold=threshold, img_normalize=img_normalize)
         data['sam_seg'][self.main_axis] = mask_data
         self.dataset.update_data(idx, mask_data)
         return mask_data
     
-    def calculate_mask(self, idx, threshold=0.0):
+    def calculate_mask(self, idx, threshold=0.0, update=False, save_path='', img_normalize=False):
         data = self.dataset[idx]
-        sam_data = get_SAM_data(data, self.mask_generator, main_axis=self.main_axis, threshold=threshold)
-        self.dataset.update_data(idx, sam_data)
+        sam_data = get_SAM_data(data, self.mask_generator, main_axis=self.main_axis, threshold=threshold, img_normalize=img_normalize)
+        if update:
+            self.dataset.update_data(idx, sam_data)
+        if save_path:
+            self.save_mask(sam_data, save_path=save_path, idx=idx)
         return sam_data['sam_seg'][self.main_axis]
+
+
+    def calculate_masks(self, threshold=0.0, update=False, save_data=False, save_dir='outputs', img_normalize=False):
+        if save_data:
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir, exist_ok=True)
+
+        for i in tqdm(range(len(self.dataset)), desc="Calculating masks ... "):
+            if save_data:
+                if self.dataset_type == 'Image':
+                    save_path = os.path.join(save_dir, "{}_sam_mask.jpg".format(self.dataset.image_file_list[i]))
+                elif self.dataset_type == 'Volume':    
+                    save_path = os.path.join(save_dir, "{}_sam_mask.nii.gz".format(self.dataset.image_file_list[i]))
+                self.calculate_mask(i, threshold=threshold, update=update, save_path=save_path, img_normalize=img_normalize)  
 
     def get_mask(self, idx):
         data = self.dataset[idx]
@@ -59,12 +76,29 @@ class SAAMI:
         keys = ['image', 'label', 'sam_seg']
         save_data_to_npz_file(data, keys, save_path)
 
+    def save_all_numpy_data(self, save_folder='outputs'):
+        for i in range(len(self.dataset)):
+            save_path = '{}/{:05d}.npz'.format(save_folder, i)
+            self.save_numpy_data(i, save_path=save_path)
+
     def save_all_data(self, save_path=None):
         for i in range(len(self.dataset)):
             save_path = save_path if save_path else 'outputs/saved_data_{}.pkl'.format(i)
             self.save_data(i, save_path=save_path)
 
-    def save_mask(self, idx, save_path='outputs/saved_mask.nii'):
+    def save_mask(self, data, save_path='outputs/saved_mask.nii', idx=0):
+        if save_path.endswith('.nii'):
+            # Index is needed to find the original nifti file
+            orig_file_path = self.dataset.image_file_list[idx]
+            assert os.path.exists(orig_file_path), "Original nifti does not exist"
+            orig_nifti = nib.load(orig_file_path)
+            convert_to_nifti(data, save_path=save_path, affine=orig_nifti.affine)
+        elif save_path.endswith('.pkl'):
+            save_SAM_data(data, save_path)
+        elif save_path.endswith('jpg') or save_path.endswith('png'):
+            cv2.imwrite(save_path, data['sam_seg'][self.main_axis])
+
+    def save_mask_by_index(self, idx, save_path='outputs/saved_mask.nii'):
         data = self.dataset[idx]
         if save_path.endswith('.nii'):
             orig_file_path = self.dataset.image_file_list[idx]
@@ -79,7 +113,7 @@ class SAAMI:
     def save_masks(self, save_path=None):
         for i in range(len(self.dataset)):
             save_path = save_path if save_path else 'outputs/saved_mask_{}.nii'.format(i)
-            self.save_mask(i, save_path=save_path)
+            self.save_mask_by_index(i, save_path=save_path)
 
     def visualize(self, idx, save_folder="outputs/example_images"):
         data = self.dataset[idx]
