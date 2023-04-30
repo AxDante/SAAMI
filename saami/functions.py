@@ -125,19 +125,29 @@ def process_slice(sam_data, input_image_slice, mask_generator, axis, start_pos=0
 
 
 
-def get_SAM_data(data_dict, mask_generator, main_axis = '2D', threshold=0.0, img_normalize=False):
+def get_SAM_data(data_dict, mask_generator, main_axis = '2D', threshold=0.0, img_normalize=False, img_operation=None):
     
     image = data_dict["image"]
     label = data_dict["label"]
     img_shape = data_dict["image"].shape
 
     sam_data = {}
-    sam_data["image"] = data_dict["image"]
-    sam_data["label"] = data_dict["label"]
+    sam_data["image"] = image
+    sam_data["label"] = label
     
+    pp_data = None
+
+    if img_operation is not None:
+        # Perform image preprocessing
+        image = img_operation(image)
+        sam_data["image_pp"] = image
+        pp_data = image
+
     sam_data["sam_seg"] = {}
 
     if main_axis == '2D': # 2D case
+
+
         sam_data = process_slice(sam_data, image, mask_generator, '2D', threshold=threshold, img_normalize=img_normalize)
 
     else: # 3D case
@@ -171,7 +181,7 @@ def get_SAM_data(data_dict, mask_generator, main_axis = '2D', threshold=0.0, img
                     sam_data = process_slice(sam_data, image[:, :, i], mask_generator, 'z', i)
                     pbar.update(1)
 
-    return sam_data
+    return sam_data, pp_data
 
 
 def check_grid3d(data, rx, ry, rz, bs):
