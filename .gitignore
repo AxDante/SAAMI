@@ -5,3 +5,4 @@ tests/
 *.pyc
 data/
 test_*
+*.ipynb
