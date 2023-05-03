@@ -110,8 +110,6 @@ class SAAMI:
             if save_data:
                 if self.dataset_type == 'Image':
                     save_path = os.path.join(save_dir, "{}_sam_mask.jpg".format(os.path.splitext(self.dataset.image_file_list[idx])[0]))
-                    print('sss')
-                    print(save_path)
                     self.calculate_mask(idx, threshold=threshold, update=update, save_path=save_path, img_normalize=img_normalize, img_operation=img_operation)  
                     # Save pre-processed images if available
 
@@ -194,7 +192,7 @@ class SAAMI:
             save_path (str): The path to save the mask.
             idx (int): The index of the item in the dataset.
         """
-        
+
         if save_path.endswith('.nii'):
             # Index is needed to find the original nifti file
             orig_file_path = self.dataset.image_file_list[idx]
