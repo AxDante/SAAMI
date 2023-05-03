@@ -194,6 +194,7 @@ class SAAMI:
             save_path (str): The path to save the mask.
             idx (int): The index of the item in the dataset.
         """
+        
         if save_path.endswith('.nii'):
             # Index is needed to find the original nifti file
             orig_file_path = self.dataset.image_file_list[idx]
